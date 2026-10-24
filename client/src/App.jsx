@@ -8,9 +8,11 @@ import {
   RotateCcw,
   Send,
   Info,
-  ExternalLink,
   Layers,
-  ArrowRight,
+  FileText,
+  Camera,
+  Image as ImageIcon,
+  Eye,
 } from 'lucide-react';
 
 import RiskBanner from './components/RiskBanner.jsx';
@@ -21,9 +23,11 @@ import SignalsPanel from './components/SignalsPanel.jsx';
 import ActionsPanel from './components/ActionsPanel.jsx';
 import LimitationsPanel from './components/LimitationsPanel.jsx';
 import CopyReportButton from './components/CopyReportButton.jsx';
+import ScreenshotUploadZone from './components/ScreenshotUploadZone.jsx';
+import ModelReadingView from './components/ModelReadingView.jsx';
 
-// Three synthetic sample inputs for testing and demo purposes
-const SYNTHETIC_SAMPLES = [
+// Synthetic sample inputs for text mode
+const SYNTHETIC_TEXT_SAMPLES = [
   {
     id: 'suspicious-bank',
     label: 'Sample (synthetic): Suspicious bank credential request',
@@ -54,16 +58,26 @@ export default function App() {
   // Backend connectivity state
   const [backendHealth, setBackendHealth] = useState('checking'); // 'checking' | 'connected' | 'offline'
 
-  // Form input state
+  // Investigation Mode Switch: 'text' | 'screenshot'
+  const [investigationMode, setInvestigationMode] = useState('text');
+
+  // Text Form input state
   const [message, setMessage] = useState('');
   const [messageType, setMessageType] = useState('email');
   const [url, setUrl] = useState('');
+
+  // Screenshot Form input state
+  const [selectedImageFile, setSelectedImageFile] = useState(null);
+  const [contextNote, setContextNote] = useState('');
+  const [imageMessageType, setImageMessageType] = useState('other');
+  const [imageResultTab, setImageResultTab] = useState('model_read'); // 'preview' | 'model_read'
 
   // Submitted snapshot (retained for inspection highlighting during active view)
   const [submittedSnapshot, setSubmittedSnapshot] = useState({
     message: '',
     url: '',
     messageType: 'email',
+    imageUrl: null,
   });
 
   // Analysis workflow state
@@ -118,6 +132,15 @@ export default function App() {
     };
   }, [isLoading]);
 
+  // Clean up snapshot image URL on unmount
+  useEffect(() => {
+    return () => {
+      if (submittedSnapshot.imageUrl && submittedSnapshot.imageUrl.startsWith('blob:')) {
+        URL.revokeObjectURL(submittedSnapshot.imageUrl);
+      }
+    };
+  }, [submittedSnapshot.imageUrl]);
+
   // Sort indicators by severity: high (3) > medium (2) > low (1)
   const sortedIndicators = useMemo(() => {
     if (!analysisResult?.indicators) return [];
@@ -136,11 +159,11 @@ export default function App() {
       }));
   }, [analysisResult]);
 
-  // Handle loading a synthetic sample input
-  const handleSelectSample = (e) => {
+  // Handle loading a synthetic text sample
+  const handleSelectTextSample = (e) => {
     const selectedId = e.target.value;
     if (!selectedId) return;
-    const sample = SYNTHETIC_SAMPLES.find((s) => s.id === selectedId);
+    const sample = SYNTHETIC_TEXT_SAMPLES.find((s) => s.id === selectedId);
     if (sample) {
       setMessage(sample.message);
       setMessageType(sample.message_type);
@@ -150,8 +173,8 @@ export default function App() {
     e.target.value = '';
   };
 
-  // Submit analysis request
-  const executeAnalysis = async (msgText, msgType, urlText) => {
+  // Submit Text analysis request
+  const executeTextAnalysis = async (msgText, msgType, urlText) => {
     if (!msgText.trim() || isLoading) return;
 
     setErrorState(null);
@@ -160,11 +183,11 @@ export default function App() {
     setActiveIndicatorIndex(null);
     setIsLoading(true);
 
-    // Save snapshot of text submitted
     setSubmittedSnapshot({
       message: msgText.trim(),
       messageType: msgType,
       url: urlText.trim(),
+      imageUrl: null,
     });
 
     const controller = new AbortController();
@@ -197,7 +220,7 @@ export default function App() {
             'The requested Gemma 4 model is currently unavailable on the backend.';
         } else if (data.code === 'MODEL_OUTPUT_INVALID') {
           friendlyMessage =
-            'The model produced output that could not be validated against the security schema.';
+            'The model produced output that could not be validated against the defensive security schema.';
         } else if (data.code === 'AUTH_FAILED') {
           friendlyMessage =
             'Authentication with the AI service failed. Verify your GEMINI_API_KEY configuration.';
@@ -214,7 +237,6 @@ export default function App() {
       setAnalysisResult(data.analysis);
       setMeta(data.meta);
 
-      // Auto-scroll to results on mobile
       if (window.innerWidth < 1024 && resultsTopRef.current) {
         resultsTopRef.current.scrollIntoView({ behavior: 'smooth' });
       }
@@ -236,9 +258,99 @@ export default function App() {
     }
   };
 
-  const handleSubmit = (e) => {
+  // Submit Screenshot analysis request
+  const executeScreenshotAnalysis = async () => {
+    if (!selectedImageFile || isLoading) return;
+
+    setErrorState(null);
+    setAnalysisResult(null);
+    setMeta(null);
+    setActiveIndicatorIndex(null);
+    setIsLoading(true);
+
+    const previewUrl = URL.createObjectURL(selectedImageFile);
+    setSubmittedSnapshot({
+      message: '',
+      url: '',
+      messageType: imageMessageType,
+      imageUrl: previewUrl,
+    });
+
+    const controller = new AbortController();
+    abortControllerRef.current = controller;
+
+    try {
+      const formData = new FormData();
+      formData.append('image', selectedImageFile);
+      formData.append('message_type', imageMessageType);
+      if (contextNote.trim()) {
+        formData.append('context_note', contextNote.trim());
+      }
+
+      const response = await fetch('/api/analyze-image', {
+        method: 'POST',
+        body: formData,
+        signal: controller.signal,
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        let friendlyMessage = data.error || 'Screenshot analysis request failed.';
+        if (data.code === 'FILE_TOO_LARGE') {
+          friendlyMessage = 'Image exceeds the maximum allowed size of 5 MB.';
+        } else if (data.code === 'INVALID_FILE_TYPE') {
+          friendlyMessage = 'Invalid image format. Only PNG, JPEG, and WebP images are supported.';
+        } else if (data.code === 'RATE_LIMITED') {
+          friendlyMessage =
+            'Image analysis request rate limit reached. Please wait a few minutes before submitting another image.';
+        } else if (data.code === 'TIMEOUT') {
+          friendlyMessage =
+            'The multimodal analysis service timed out after 60 seconds. Please try again.';
+        } else if (data.code === 'MODEL_UNAVAILABLE') {
+          friendlyMessage =
+            'The requested Gemma 4 multimodal model is currently unavailable on the backend.';
+        } else if (data.code === 'MODEL_OUTPUT_INVALID') {
+          friendlyMessage =
+            'The model produced output that could not be validated against the security schema.';
+        }
+
+        setErrorState({
+          code: data.code || 'REQUEST_FAILED',
+          message: friendlyMessage,
+        });
+        setIsLoading(false);
+        return;
+      }
+
+      setAnalysisResult(data.analysis);
+      setMeta(data.meta);
+      setImageResultTab('model_read');
+
+      if (window.innerWidth < 1024 && resultsTopRef.current) {
+        resultsTopRef.current.scrollIntoView({ behavior: 'smooth' });
+      }
+    } catch (err) {
+      if (err.name === 'AbortError') {
+        setErrorState({
+          code: 'CANCELLED',
+          message: 'Analysis was cancelled by the user.',
+        });
+      } else {
+        setErrorState({
+          code: 'NETWORK_ERROR',
+          message: 'Unable to connect to the backend server. Verify your connection.',
+        });
+      }
+    } finally {
+      setIsLoading(false);
+      abortControllerRef.current = null;
+    }
+  };
+
+  const handleTextSubmit = (e) => {
     e.preventDefault();
-    executeAnalysis(message, messageType, url);
+    executeTextAnalysis(message, messageType, url);
   };
 
   // Cancel in-flight request
@@ -253,7 +365,9 @@ export default function App() {
     setMessage('');
     setUrl('');
     setMessageType('email');
-    setSubmittedSnapshot({ message: '', url: '', messageType: 'email' });
+    setSelectedImageFile(null);
+    setContextNote('');
+    setSubmittedSnapshot({ message: '', url: '', messageType: 'email', imageUrl: null });
     setAnalysisResult(null);
     setMeta(null);
     setErrorState(null);
@@ -284,6 +398,8 @@ export default function App() {
     }, 50);
   };
 
+  const isImageAnalysis = meta?.input_type === 'image';
+
   return (
     <div className="min-h-screen bg-[#0a0f1d] text-[#fdfbf7] flex flex-col justify-between p-4 sm:p-8 selection:bg-teal-500/20">
       {/* 1. Header */}
@@ -298,7 +414,7 @@ export default function App() {
                 LinkSleuth
               </h1>
               <span className="text-[10px] font-mono px-2 py-0.5 rounded-[6px] bg-teal-950/60 text-teal-300 border border-teal-500/30">
-                Phase 4: Evidence-First
+                Phase 5: Multimodal Screenshot
               </span>
             </div>
             <p className="text-xs text-slate-400">
@@ -354,192 +470,314 @@ export default function App() {
 
       {/* 2. Main Content Grid (Two-column on lg+, stacked on mobile) */}
       <main className="max-w-6xl mx-auto w-full my-6 flex-1 grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
-        {/* Left Column: Submission Workspace + Highlighted Message Viewer (5 cols on lg) */}
+        {/* Left Column: Input Workspace / Inspection Viewer (5 cols on lg) */}
         <div className="lg:col-span-5 flex flex-col gap-6">
+          {/* Investigation Mode Selector Tabs */}
+          <div
+            role="tablist"
+            aria-label="Investigation Input Mode"
+            className="grid grid-cols-2 p-1 rounded-[8px] bg-slate-900 border border-white/10 text-xs font-medium"
+          >
+            <button
+              type="button"
+              role="tab"
+              id="tab-text"
+              aria-selected={investigationMode === 'text'}
+              aria-controls="panel-text"
+              onClick={() => setInvestigationMode('text')}
+              className={`flex items-center justify-center gap-2 py-2 rounded-[6px] transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-400 cursor-pointer ${
+                investigationMode === 'text'
+                  ? 'bg-teal-950/80 text-teal-200 border border-teal-500/40 shadow-sm'
+                  : 'text-slate-400 hover:text-slate-200'
+              }`}
+            >
+              <FileText className="w-3.5 h-3.5" aria-hidden="true" />
+              <span>Text Message</span>
+            </button>
+
+            <button
+              type="button"
+              role="tab"
+              id="tab-screenshot"
+              aria-selected={investigationMode === 'screenshot'}
+              aria-controls="panel-screenshot"
+              onClick={() => setInvestigationMode('screenshot')}
+              className={`flex items-center justify-center gap-2 py-2 rounded-[6px] transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-400 cursor-pointer ${
+                investigationMode === 'screenshot'
+                  ? 'bg-teal-950/80 text-teal-200 border border-teal-500/40 shadow-sm'
+                  : 'text-slate-400 hover:text-slate-200'
+              }`}
+            >
+              <Camera className="w-3.5 h-3.5" aria-hidden="true" />
+              <span>Screenshot / Image</span>
+            </button>
+          </div>
+
           {/* Submission Input Section */}
           <section
             className="bg-[#111827] border border-white/10 rounded-[10px] p-5 backdrop-blur-sm flex flex-col gap-4 shadow-sm"
             aria-labelledby="input-heading"
           >
-            <div className="flex flex-wrap items-center justify-between gap-2.5">
-              <h2 id="input-heading" className="text-sm font-semibold text-[#fdfbf7]">
-                Message Submission
-              </h2>
+            {investigationMode === 'text' ? (
+              /* Text Input Mode */
+              <>
+                <div className="flex flex-wrap items-center justify-between gap-2.5">
+                  <h2 id="input-heading" className="text-sm font-semibold text-[#fdfbf7]">
+                    Message Submission
+                  </h2>
 
-              {/* Load Sample Selector */}
-              <div className="relative w-full sm:w-auto max-w-full sm:max-w-xs">
-                <label htmlFor="sample-selector" className="sr-only">
-                  Load synthetic sample input
-                </label>
-                <select
-                  id="sample-selector"
-                  onChange={handleSelectSample}
-                  defaultValue=""
-                  className="w-full text-xs bg-slate-900 border border-white/15 rounded-[6px] px-2.5 py-1.5 text-slate-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-400 cursor-pointer truncate"
-                >
-                  <option value="" disabled>
-                    Load sample input (synthetic)...
-                  </option>
-                  {SYNTHETIC_SAMPLES.map((s) => (
-                    <option key={s.id} value={s.id}>
-                      {s.label}
-                    </option>
-                  ))}
-                </select>
-              </div>
-            </div>
-
-            <form onSubmit={handleSubmit} className="flex flex-col gap-4">
-              {/* Message Type Selector */}
-              <fieldset>
-                <legend className="text-xs font-medium text-slate-300 mb-1.5">
-                  Message Medium:
-                </legend>
-                <div className="grid grid-cols-3 gap-2">
-                  {[
-                    { id: 'type-email', val: 'email', label: 'Email' },
-                    { id: 'type-sms', val: 'sms', label: 'SMS / Text' },
-                    { id: 'type-other', val: 'other', label: 'Other' },
-                  ].map((item) => (
-                    <label
-                      key={item.val}
-                      htmlFor={item.id}
-                      className={`flex items-center justify-center gap-1.5 py-2 px-3 rounded-[8px] border text-xs font-medium cursor-pointer transition-colors ${
-                        messageType === item.val
-                          ? 'bg-teal-950/70 border-teal-500/50 text-teal-200'
-                          : 'bg-slate-900/60 border-white/10 text-slate-400 hover:border-white/20'
-                      }`}
-                    >
-                      <input
-                        type="radio"
-                        id={item.id}
-                        name="message_type"
-                        value={item.val}
-                        checked={messageType === item.val}
-                        onChange={(e) => setMessageType(e.target.value)}
-                        className="sr-only"
-                      />
-                      <span>{item.label}</span>
+                  <div className="relative w-full sm:w-auto max-w-full sm:max-w-xs">
+                    <label htmlFor="sample-selector" className="sr-only">
+                      Load synthetic sample input
                     </label>
-                  ))}
-                </div>
-              </fieldset>
-
-              {/* Message Textarea with Live Counter */}
-              <div>
-                <div className="flex justify-between items-center mb-1">
-                  <label htmlFor="message-input" className="text-xs font-medium text-slate-300">
-                    Message Content: <span className="text-rose-400" aria-hidden="true">*</span>
-                  </label>
-                  <span
-                    id="char-count"
-                    className={`text-[11px] font-mono ${
-                      message.length > 14000 ? 'text-amber-400 font-bold' : 'text-slate-400'
-                    }`}
-                    aria-live="polite"
-                  >
-                    {message.length.toLocaleString()} / 15,000
-                  </span>
-                </div>
-                <textarea
-                  id="message-input"
-                  name="message"
-                  rows={6}
-                  maxLength={15000}
-                  required
-                  value={message}
-                  onChange={(e) => setMessage(e.target.value)}
-                  placeholder="Paste the suspicious email, text message, or notification body here..."
-                  className="w-full bg-slate-900/90 border border-white/15 rounded-[8px] p-3 text-sm text-[#fdfbf7] placeholder:text-slate-500 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-400 resize-y"
-                  aria-describedby="message-hint char-count"
-                />
-                <span id="message-hint" className="sr-only">
-                  Enter up to 15000 characters of untrusted message text to analyze.
-                </span>
-              </div>
-
-              {/* Optional URL Input */}
-              <div>
-                <label htmlFor="url-input" className="block text-xs font-medium text-slate-300 mb-1">
-                  Embedded URL (Optional):
-                </label>
-                <input
-                  type="text"
-                  id="url-input"
-                  name="url"
-                  maxLength={2048}
-                  value={url}
-                  onChange={(e) => setUrl(e.target.value)}
-                  placeholder="https://example-link.com/login"
-                  autoCorrect="off"
-                  autoCapitalize="off"
-                  spellCheck="false"
-                  className="w-full bg-slate-900/90 border border-white/15 rounded-[8px] px-3 py-2 text-sm text-[#fdfbf7] placeholder:text-slate-500 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-400"
-                  aria-describedby="url-hint"
-                />
-                <p id="url-hint" className="mt-1 text-[11px] text-slate-400 flex items-center gap-1">
-                  <Info className="w-3 h-3 text-slate-400 flex-shrink-0" aria-hidden="true" />
-                  <span>URLs are stored only as reference text and are never fetched or visited.</span>
-                </p>
-              </div>
-
-              {/* Form Action Buttons */}
-              <div className="flex items-center gap-3 mt-1">
-                <button
-                  type="submit"
-                  disabled={isLoading || !message.trim()}
-                  className="flex-1 flex items-center justify-center gap-2 bg-teal-600 hover:bg-teal-500 disabled:opacity-50 disabled:cursor-not-allowed text-white text-sm font-semibold py-2.5 px-4 rounded-[8px] shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-400 cursor-pointer"
-                >
-                  {isLoading ? (
-                    <>
-                      <Loader2 className="w-4 h-4 animate-spin" aria-hidden="true" />
-                      <span>Analyzing with Gemma 4... ({elapsedSeconds}s)</span>
-                    </>
-                  ) : (
-                    <>
-                      <Send className="w-4 h-4" aria-hidden="true" />
-                      <span>Analyze Content</span>
-                    </>
-                  )}
-                </button>
-
-                {isLoading ? (
-                  <button
-                    type="button"
-                    onClick={handleCancel}
-                    className="px-3.5 py-2.5 rounded-[8px] border border-rose-500/40 bg-rose-950/40 text-rose-300 hover:bg-rose-900/40 text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-rose-500 cursor-pointer"
-                  >
-                    Cancel
-                  </button>
-                ) : (
-                  (message || analysisResult || errorState) && (
-                    <button
-                      type="button"
-                      onClick={handleReset}
-                      title="Reset workspace"
-                      className="p-2.5 rounded-[8px] border border-white/10 bg-slate-900 text-slate-400 hover:text-white hover:border-white/20 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-400 cursor-pointer"
+                    <select
+                      id="sample-selector"
+                      onChange={handleSelectTextSample}
+                      defaultValue=""
+                      className="w-full text-xs bg-slate-900 border border-white/15 rounded-[6px] px-2.5 py-1.5 text-slate-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-400 cursor-pointer truncate"
                     >
-                      <RotateCcw className="w-4 h-4" aria-hidden="true" />
-                      <span className="sr-only">Reset workspace</span>
+                      <option value="" disabled>
+                        Load sample input (synthetic)...
+                      </option>
+                      {SYNTHETIC_TEXT_SAMPLES.map((s) => (
+                        <option key={s.id} value={s.id}>
+                          {s.label}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+
+                <form onSubmit={handleTextSubmit} className="flex flex-col gap-4">
+                  {/* Message Type Selector */}
+                  <fieldset>
+                    <legend className="text-xs font-medium text-slate-300 mb-1.5">
+                      Message Medium:
+                    </legend>
+                    <div className="grid grid-cols-3 gap-2">
+                      {[
+                        { id: 'type-email', val: 'email', label: 'Email' },
+                        { id: 'type-sms', val: 'sms', label: 'SMS / Text' },
+                        { id: 'type-other', val: 'other', label: 'Other' },
+                      ].map((item) => (
+                        <label
+                          key={item.val}
+                          htmlFor={item.id}
+                          className={`flex items-center justify-center gap-1.5 py-2 px-3 rounded-[8px] border text-xs font-medium cursor-pointer transition-colors ${
+                            messageType === item.val
+                              ? 'bg-teal-950/70 border-teal-500/50 text-teal-200'
+                              : 'bg-slate-900/60 border-white/10 text-slate-400 hover:border-white/20'
+                          }`}
+                        >
+                          <input
+                            type="radio"
+                            id={item.id}
+                            name="message_type"
+                            value={item.val}
+                            checked={messageType === item.val}
+                            onChange={(e) => setMessageType(e.target.value)}
+                            className="sr-only"
+                          />
+                          <span>{item.label}</span>
+                        </label>
+                      ))}
+                    </div>
+                  </fieldset>
+
+                  {/* Message Textarea with Live Counter */}
+                  <div>
+                    <div className="flex justify-between items-center mb-1">
+                      <label htmlFor="message-input" className="text-xs font-medium text-slate-300">
+                        Message Content: <span className="text-rose-400" aria-hidden="true">*</span>
+                      </label>
+                      <span
+                        id="char-count"
+                        className={`text-[11px] font-mono ${
+                          message.length > 14000 ? 'text-amber-400 font-bold' : 'text-slate-400'
+                        }`}
+                        aria-live="polite"
+                      >
+                        {message.length.toLocaleString()} / 15,000
+                      </span>
+                    </div>
+                    <textarea
+                      id="message-input"
+                      name="message"
+                      rows={6}
+                      maxLength={15000}
+                      required
+                      value={message}
+                      onChange={(e) => setMessage(e.target.value)}
+                      placeholder="Paste the suspicious email, text message, or notification body here..."
+                      className="w-full bg-slate-900/90 border border-white/15 rounded-[8px] p-3 text-sm text-[#fdfbf7] placeholder:text-slate-500 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-400 resize-y"
+                      aria-describedby="message-hint char-count"
+                    />
+                    <span id="message-hint" className="sr-only">
+                      Enter up to 15000 characters of untrusted message text to analyze.
+                    </span>
+                  </div>
+
+                  {/* Optional URL Input */}
+                  <div>
+                    <label htmlFor="url-input" className="block text-xs font-medium text-slate-300 mb-1">
+                      Embedded URL (Optional):
+                    </label>
+                    <input
+                      type="text"
+                      id="url-input"
+                      name="url"
+                      maxLength={2048}
+                      value={url}
+                      onChange={(e) => setUrl(e.target.value)}
+                      placeholder="https://example-link.com/login"
+                      autoCorrect="off"
+                      autoCapitalize="off"
+                      spellCheck="false"
+                      className="w-full bg-slate-900/90 border border-white/15 rounded-[8px] px-3 py-2 text-sm text-[#fdfbf7] placeholder:text-slate-500 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-400"
+                      aria-describedby="url-hint"
+                    />
+                    <p id="url-hint" className="mt-1 text-[11px] text-slate-400 flex items-center gap-1">
+                      <Info className="w-3 h-3 text-slate-400 flex-shrink-0" aria-hidden="true" />
+                      <span>URLs are stored only as reference text and are never fetched or visited.</span>
+                    </p>
+                  </div>
+
+                  {/* Form Action Buttons */}
+                  <div className="flex items-center gap-3 mt-1">
+                    <button
+                      type="submit"
+                      disabled={isLoading || !message.trim()}
+                      className="flex-1 flex items-center justify-center gap-2 bg-teal-600 hover:bg-teal-500 disabled:opacity-50 disabled:cursor-not-allowed text-white text-sm font-semibold py-2.5 px-4 rounded-[8px] shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-400 cursor-pointer"
+                    >
+                      {isLoading ? (
+                        <>
+                          <Loader2 className="w-4 h-4 animate-spin" aria-hidden="true" />
+                          <span>Analyzing with Gemma 4... ({elapsedSeconds}s)</span>
+                        </>
+                      ) : (
+                        <>
+                          <Send className="w-4 h-4" aria-hidden="true" />
+                          <span>Analyze Content</span>
+                        </>
+                      )}
                     </button>
-                  )
-                )}
-              </div>
-            </form>
+
+                    {isLoading ? (
+                      <button
+                        type="button"
+                        onClick={handleCancel}
+                        className="px-3.5 py-2.5 rounded-[8px] border border-rose-500/40 bg-rose-950/40 text-rose-300 hover:bg-rose-900/40 text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-rose-500 cursor-pointer"
+                      >
+                        Cancel
+                      </button>
+                    ) : (
+                      (message || analysisResult || errorState) && (
+                        <button
+                          type="button"
+                          onClick={handleReset}
+                          title="Reset workspace"
+                          className="p-2.5 rounded-[8px] border border-white/10 bg-slate-900 text-slate-400 hover:text-white hover:border-white/20 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-400 cursor-pointer"
+                        >
+                          <RotateCcw className="w-4 h-4" aria-hidden="true" />
+                          <span className="sr-only">Reset workspace</span>
+                        </button>
+                      )
+                    )}
+                  </div>
+                </form>
+              </>
+            ) : (
+              /* Screenshot Upload Mode */
+              <ScreenshotUploadZone
+                onAnalyze={executeScreenshotAnalysis}
+                isLoading={isLoading}
+                elapsedSeconds={elapsedSeconds}
+                onCancel={handleCancel}
+                selectedFile={selectedImageFile}
+                setSelectedFile={setSelectedImageFile}
+                contextNote={contextNote}
+                setContextNote={setContextNote}
+                messageType={imageMessageType}
+                setMessageType={setImageMessageType}
+              />
+            )}
           </section>
 
-          {/* Highlighted Message Inspection Reading Surface (Visible when results exist) */}
-          {!isLoading && analysisResult && submittedSnapshot.message && (
+          {/* Inspection View (renders below form when analysis results exist) */}
+          {!isLoading && analysisResult && (
             <section
               className="bg-[#111827] border border-white/10 rounded-[10px] p-5 shadow-sm"
-              aria-labelledby="highlighted-heading"
+              aria-labelledby="inspection-heading"
             >
-              <HighlightedMessage
-                message={submittedSnapshot.message}
-                indicators={sortedIndicators}
-                activeIndicatorIndex={activeIndicatorIndex}
-                onSelectIndicator={handleSelectIndicatorFromHighlight}
-              />
+              {isImageAnalysis ? (
+                /* Image Analysis Result Viewer: Preview Tab | Model Read Tab */
+                <div className="flex flex-col gap-3">
+                  <div
+                    role="tablist"
+                    aria-label="Screenshot inspection view options"
+                    className="flex items-center gap-2 border-b border-white/10 pb-2.5"
+                  >
+                    <button
+                      type="button"
+                      role="tab"
+                      aria-selected={imageResultTab === 'model_read'}
+                      onClick={() => setImageResultTab('model_read')}
+                      className={`flex items-center gap-1.5 px-3 py-1.5 rounded-[6px] text-xs font-medium transition-colors cursor-pointer ${
+                        imageResultTab === 'model_read'
+                          ? 'bg-teal-950/80 text-teal-200 border border-teal-500/40'
+                          : 'text-slate-400 hover:text-slate-200 bg-slate-900 border border-white/5'
+                      }`}
+                    >
+                      <Eye className="w-3.5 h-3.5" aria-hidden="true" />
+                      <span>What the model read</span>
+                    </button>
+
+                    {submittedSnapshot.imageUrl && (
+                      <button
+                        type="button"
+                        role="tab"
+                        aria-selected={imageResultTab === 'preview'}
+                        onClick={() => setImageResultTab('preview')}
+                        className={`flex items-center gap-1.5 px-3 py-1.5 rounded-[6px] text-xs font-medium transition-colors cursor-pointer ${
+                          imageResultTab === 'preview'
+                            ? 'bg-teal-950/80 text-teal-200 border border-teal-500/40'
+                            : 'text-slate-400 hover:text-slate-200 bg-slate-900 border border-white/5'
+                        }`}
+                      >
+                        <ImageIcon className="w-3.5 h-3.5" aria-hidden="true" />
+                        <span>Screenshot Preview</span>
+                      </button>
+                    )}
+                  </div>
+
+                  {imageResultTab === 'model_read' ? (
+                    <ModelReadingView
+                      imageObservations={analysisResult.image_observations}
+                      indicators={sortedIndicators}
+                      activeIndicatorIndex={activeIndicatorIndex}
+                      onSelectIndicator={handleSelectIndicatorFromHighlight}
+                    />
+                  ) : (
+                    <div className="flex flex-col items-center justify-center p-2 rounded-[8px] bg-slate-900 border border-white/10">
+                      <img
+                        src={submittedSnapshot.imageUrl}
+                        alt="Submitted screenshot"
+                        className="max-h-[380px] w-auto object-contain rounded"
+                      />
+                    </div>
+                  )}
+                </div>
+              ) : (
+                /* Text Analysis Result Viewer: Highlighted Message */
+                submittedSnapshot.message && (
+                  <HighlightedMessage
+                    message={submittedSnapshot.message}
+                    indicators={sortedIndicators}
+                    activeIndicatorIndex={activeIndicatorIndex}
+                    onSelectIndicator={handleSelectIndicatorFromHighlight}
+                  />
+                )
+              )}
             </section>
           )}
         </div>
@@ -578,7 +816,9 @@ export default function App() {
                   Performing Defensive Security Analysis
                 </h3>
                 <p className="text-xs text-slate-400 mt-1 max-w-sm">
-                  Gemma 4 is inspecting structural anomalies, social engineering lures, and grounded evidence...
+                  {investigationMode === 'screenshot'
+                    ? 'Gemma 4 is transcribing visual content, extracting visible links, and evaluating deceptive lures...'
+                    : 'Gemma 4 is inspecting structural anomalies, social engineering lures, and grounded evidence...'}
                 </p>
                 <div className="mt-3 inline-flex items-center gap-2 px-3 py-1 rounded-[6px] bg-slate-900 border border-white/10 text-xs font-mono text-teal-300">
                   <span>Elapsed: {elapsedSeconds}s</span>
@@ -617,7 +857,13 @@ export default function App() {
                 <div className="pt-2 border-t border-rose-500/20 flex justify-end">
                   <button
                     type="button"
-                    onClick={() => executeAnalysis(message, messageType, url)}
+                    onClick={() => {
+                      if (investigationMode === 'screenshot') {
+                        executeScreenshotAnalysis();
+                      } else {
+                        executeTextAnalysis(message, messageType, url);
+                      }
+                    }}
                     className="flex items-center gap-1.5 px-3 py-1.5 rounded-[6px] text-xs font-semibold bg-rose-900/60 hover:bg-rose-800 text-rose-200 border border-rose-500/30 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-rose-400 cursor-pointer"
                   >
                     <RotateCcw className="w-3.5 h-3.5" aria-hidden="true" />
@@ -638,7 +884,9 @@ export default function App() {
                 Awaiting Submission
               </h3>
               <p className="text-xs text-slate-400 mt-1 max-w-sm leading-relaxed">
-                Paste an untrusted message or load a synthetic sample on the left to evaluate for social engineering, urgency lures, and phishing markers.
+                {investigationMode === 'screenshot'
+                  ? 'Upload a screenshot or load a synthetic sample on the left to evaluate for fake login portals, smishing bubbles, and deceptive design patterns.'
+                  : 'Paste an untrusted message or load a synthetic sample on the left to evaluate for social engineering, urgency lures, and phishing markers.'}
               </p>
             </section>
           )}
@@ -694,6 +942,7 @@ export default function App() {
                         isActive={activeIndicatorIndex === ind._originalIdx}
                         onFocusCard={setActiveIndicatorIndex}
                         onJumpToHighlight={handleJumpToHighlightFromCard}
+                        inputType={isImageAnalysis ? 'image' : 'text'}
                       />
                     ))}
                   </div>

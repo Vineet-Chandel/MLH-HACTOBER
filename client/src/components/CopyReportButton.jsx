@@ -16,6 +16,7 @@ export default function CopyReportButton({ analysis, meta, submittedMessage, sub
       'LINKSLEUTH DEFENSIVE SECURITY INVESTIGATION REPORT',
       divider,
       `Generated: ${timestamp}`,
+      `Input Mode: ${meta?.input_type === 'image' ? 'SCREENSHOT / IMAGE' : 'TEXT SUBMISSION'}`,
       `Assessed Risk Level: ${analysis.risk_level.toUpperCase()}`,
       `Heuristic Score: ${analysis.heuristic_score} / 100 (Heuristic indicator, not a probability)`,
       `Model: ${meta?.model || 'Gemma 4'}`,
@@ -25,9 +26,30 @@ export default function CopyReportButton({ analysis, meta, submittedMessage, sub
       subDivider,
       analysis.summary,
       '',
-      `IDENTIFIED INDICATORS (${analysis.indicators?.length || 0}):`,
-      subDivider,
     ];
+
+    if (analysis.image_observations) {
+      lines.push('IMAGE OBSERVATIONS:');
+      lines.push(subDivider);
+      if (analysis.image_observations.image_quality_note) {
+        lines.push(`Quality Note: ${analysis.image_observations.image_quality_note}`);
+      }
+      if (analysis.image_observations.visual_elements?.length > 0) {
+        lines.push(`Visual Elements: ${analysis.image_observations.visual_elements.join('; ')}`);
+      }
+      if (analysis.image_observations.visible_urls?.length > 0) {
+        lines.push(`Visible URLs (unfetched): ${analysis.image_observations.visible_urls.join(', ')}`);
+      }
+      if (analysis.image_observations.transcribed_text) {
+        lines.push('');
+        lines.push('Transcribed Text:');
+        lines.push(analysis.image_observations.transcribed_text);
+      }
+      lines.push('');
+    }
+
+    lines.push(`IDENTIFIED INDICATORS (${analysis.indicators?.length || 0}):`);
+    lines.push(subDivider);
 
     if (!analysis.indicators || analysis.indicators.length === 0) {
       lines.push('None detected.');
@@ -35,12 +57,27 @@ export default function CopyReportButton({ analysis, meta, submittedMessage, sub
       analysis.indicators.forEach((ind, i) => {
         lines.push(`[${i + 1}] Category: ${ind.category.toUpperCase()}`);
         lines.push(`    Severity: ${ind.severity.toUpperCase()}`);
-        lines.push(
-          `    Verified in Message: ${
-            ind.evidence_match?.found ? 'YES' : 'NO (Unverified quote)'
-          }`
-        );
-        lines.push(`    Quoted Evidence: "${ind.evidence}"`);
+        if (ind.evidence_source) {
+          lines.push(`    Source: ${ind.evidence_source}`);
+        }
+        if (meta?.input_type === 'image') {
+          lines.push(
+            `    Grounding: ${
+              ind.evidence_source === 'visual_element'
+                ? 'Visual element observation'
+                : ind.evidence_match?.found
+                ? 'Matches model transcript (not independently verified)'
+                : 'Not found in transcript'
+            }`
+          );
+        } else {
+          lines.push(
+            `    Verified in Message: ${
+              ind.evidence_match?.found ? 'YES' : 'NO (Unverified quote)'
+            }`
+          );
+        }
+        lines.push(`    Evidence: "${ind.evidence}"`);
         lines.push(`    Explanation: ${ind.explanation}`);
         if (ind.uncertainty) {
           lines.push(`    Uncertainty: ${ind.uncertainty}`);
