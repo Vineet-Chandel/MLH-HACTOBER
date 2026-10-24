@@ -266,8 +266,6 @@ LinkSleuth explores how open-weight AI can make phishing investigation more unde
 ### Gemma 4 Evaluation Summary (2026-10-24)
 
 - **Model**: `gemma-4-26b-a4b-it`
-- **Strict Agreement (Suspicious & Benign)**: 7 / 7 (100%)
-- **Run-to-Run Consistency**: 10 / 10 (100%)
 
 > _Small synthetic set, not a benchmark. Results vary between runs and models. Labels were written by the team before running and were not changed afterward._
 
@@ -284,5 +282,4 @@ LinkSleuth explores how open-weight AI can make phishing investigation more unde
 | `synth-ambiguous-02-callback` | `ambiguous` | `low_concern` | `low_concern` | ✅ Pass | 0/0 | Yes | 21723ms |
 | `synth-ambiguous-03-terms-notice` | `ambiguous` | `low_concern` | `low_concern` | ✅ Pass | 0/0 | Yes | 21848ms |
 
-See detailed report and failure breakdown in [`docs/EVAL.md`](./docs/EVAL.md).
 <!-- EVAL:END -->
