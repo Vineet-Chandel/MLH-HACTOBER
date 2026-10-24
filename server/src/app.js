@@ -195,10 +195,23 @@ const isDirectRun =
   path.resolve(process.argv[1]) === fileURLToPath(import.meta.url);
 
 if (isDirectRun) {
-  app.listen(PORT, () => {
+  const server = app.listen(PORT, () => {
     console.log(`[LinkSleuth Server] Running on http://localhost:${PORT}`);
     console.log(`[LinkSleuth Server] Restrictive CORS allowed origin: ${CLIENT_ORIGIN}`);
   });
+
+  server.on('error', (err) => {
+    if (err.code === 'EADDRINUSE') {
+      console.error(`\n❌ [LinkSleuth Server] Port ${PORT} is already in use.`);
+      console.error(`   Another instance is already running (e.g., from your other terminal tab running "npm run dev").`);
+      console.error(`   To free port ${PORT}, run: lsof -ti :${PORT} | xargs kill -9\n`);
+      process.exit(1);
+    }
+    throw err;
+  });
+
+  process.on('SIGTERM', () => server.close());
+  process.on('SIGINT', () => server.close());
 }
 
 export default app;
