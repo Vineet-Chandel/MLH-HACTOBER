@@ -2,6 +2,7 @@
   "name": "linksleuth",
   "version": "0.1.0",
   "private": true,
+  "type": "module",
   "description": "Intelligent link and content verification assistant powered by Google Gemma",
   "scripts": {
     "dev": "concurrently -n \"server,client\" -c \"blue,magenta\" \"npm run dev --prefix server\" \"npm run dev --prefix client\"",
@@ -10,7 +11,9 @@
     "check:model": "npm run check:model --prefix server",
     "ping:gemma": "npm run ping:gemma --prefix server",
     "test:integration": "npm run test:integration --prefix server",
-    "test": "npm run test --prefix server"
+    "eval": "npm run eval --prefix server",
+    "test": "npm run test --prefix server",
+    "eval:india": "npm run eval:india --prefix server"
   },
   "devDependencies": {
     "concurrently": "^9.1.2"

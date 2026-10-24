@@ -41,6 +41,40 @@ export const RiskLevelEnum = z.enum([
   'inconclusive',
 ]);
 
+export const DetectedLanguageEnum = z.enum([
+  'en',
+  'hi',
+  'hinglish',
+  'mixed',
+  'other',
+  'unclear',
+]);
+
+export const ScamPatternEnum = z.enum([
+  'kyc_update',
+  'upi_collect_request',
+  'parcel_customs',
+  'electricity_disconnection',
+  'fake_job_task',
+  'digital_arrest',
+  'bank_impersonation_otp',
+  'prize_lottery',
+  'loan_app_harassment',
+  'remote_access_app',
+  'other',
+  'none',
+  'unclear',
+]);
+
+export const OutputLanguageEnum = z.enum(['match', 'en', 'hi']);
+
+export const UserStateEnum = z.enum([
+  'none',
+  'clicked_link',
+  'shared_info',
+  'paid_money',
+]);
+
 export const AnalysisOutputSchema = z.object({
   risk_level: RiskLevelEnum,
   summary: z.string().min(1).max(2000),
@@ -49,6 +83,9 @@ export const AnalysisOutputSchema = z.object({
   positive_or_neutral_signals: z.array(z.string().max(500)).max(25).default([]),
   recommended_actions: z.array(z.string().max(500)).max(25).default([]),
   limitations: z.array(z.string().max(500)).max(25).default([]),
+  detected_language: DetectedLanguageEnum.optional().default('unclear'),
+  scam_pattern: ScamPatternEnum.optional().default('none'),
+  pattern_rationale: z.string().max(400).optional().default(''),
 });
 
 export const ImageObservationsSchema = z.object({
@@ -62,7 +99,7 @@ export const ImageAnalysisOutputSchema = AnalysisOutputSchema.extend({
   image_observations: ImageObservationsSchema,
 });
 
-export const MessageTypeEnum = z.enum(['sms', 'email', 'other']);
+export const MessageTypeEnum = z.enum(['sms', 'email', 'call', 'other']);
 
 export const AnalyzeRequestSchema = z.object({
   message: z
@@ -81,6 +118,14 @@ export const AnalyzeRequestSchema = z.object({
     .optional()
     .nullable()
     .transform((val) => (val ? val.trim() : undefined)),
+  claimed_org: z
+    .string()
+    .max(100, 'Claimed organization cannot exceed 100 characters')
+    .optional()
+    .nullable()
+    .transform((val) => (val ? val.trim() : undefined)),
+  output_language: OutputLanguageEnum.optional().default('match'),
+  user_state: UserStateEnum.optional().default('none'),
 });
 
 export const AnalyzeImageRequestSchema = z.object({
@@ -91,4 +136,12 @@ export const AnalyzeImageRequestSchema = z.object({
     .optional()
     .nullable()
     .transform((val) => (val ? val.trim() : undefined)),
+  claimed_org: z
+    .string()
+    .max(100, 'Claimed organization cannot exceed 100 characters')
+    .optional()
+    .nullable()
+    .transform((val) => (val ? val.trim() : undefined)),
+  output_language: OutputLanguageEnum.optional().default('match'),
+  user_state: UserStateEnum.optional().default('none'),
 });

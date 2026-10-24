@@ -1,0 +1,145 @@
+{
+  "_comment": "Hindi drafted by AI; needs review by a native speaker before release.",
+  "patterns": [
+    {
+      "id": "kyc_update",
+      "title_en": "KYC / Account Suspension Threat",
+      "title_hi": "केवाईसी / खाता निलंबन की चेतावनी",
+      "signals": [
+        "Urgent threat that bank account, SIM card, or wallet will be suspended within 24 hours unless KYC is updated",
+        "Includes an unofficial link or asks recipient to call an unofficial mobile number to update KYC",
+        "Demands submission of Aadhaar, PAN, passwords, or installation of an app to verify identity"
+      ],
+      "legit_look_alikes": "Legitimate banks and telecom operators periodically notify customers to complete KYC, but they generally direct users to visit an official branch, log into the official app, or use their verified netbanking portal, without imposing arbitrary same-day suspension threats or linking to third-party domains.",
+      "static_tip_en": "Legitimate banks will not ask you to update KYC via an unofficial link sent by SMS or third-party messaging apps.",
+      "static_tip_hi": "वैध बैंक आपको एसएमएस या अनौपचारिक लिंक के माध्यम से केवाईसी अपडेट करने के लिए नहीं कहते हैं।",
+      "needs_verification": true
+    },
+    {
+      "id": "upi_collect_request",
+      "title_en": "UPI Collect Request / Fake Refund",
+      "title_hi": "यूपीआई कलेक्ट रिक्वेस्ट / फर्जी रिफंड",
+      "signals": [
+        "Message or caller asks recipient to approve a collect request or enter a UPI PIN in order to receive money, cashback, or refund",
+        "Claims that money has been credited by mistake and asks recipient to send it back via UPI",
+        "Instructs recipient to scan a QR code to receive a payment"
+      ],
+      "legit_look_alikes": "Legitimate UPI transactions require entering your PIN only when you are paying or sending money, never when receiving funds. Legitimate merchants send invoice collect requests for purchases you initiated.",
+      "static_tip_en": "You never need to enter your UPI PIN or approve a collect request to receive money into your account.",
+      "static_tip_hi": "अपने खाते में पैसे प्राप्त करने के लिए आपको कभी भी यूपीआई पिन दर्ज करने या कलेक्ट अनुरोध स्वीकार करने की आवश्यकता नहीं होती है।",
+      "needs_verification": true
+    },
+    {
+      "id": "parcel_customs",
+      "title_en": "Parcel Held at Customs / Delivery Fee",
+      "title_hi": "सीमा शुल्क पर पार्सल / डिलीवरी शुल्क",
+      "signals": [
+        "Message claims an international shipment, courier, or gift is held at customs or a delivery depot",
+        "Demands a small clearance fee or address update via an unofficial payment link to avoid package cancellation or seizure",
+        "Claims sender is trapped at the airport or customs and requires immediate funds"
+      ],
+      "legit_look_alikes": "Postal services and courier companies send routine delivery tracking messages, but formal customs duties are assessed through official documentation and paid via authorized customs portals or upon verified delivery, not via casual SMS payment links.",
+      "static_tip_en": "Customs duty on personal shipments is not paid through casual SMS payment links; verify tracking on the courier's official website.",
+      "static_tip_hi": "व्यक्तिगत पार्सल पर सीमा शुल्क का भुगतान एसएमएस में आए किसी लिंक से नहीं किया जाता; आधिकारिक वेबसाइट पर ट्रैकिंग जांचें।",
+      "needs_verification": true
+    },
+    {
+      "id": "electricity_disconnection",
+      "title_en": "Electricity Disconnection Warning",
+      "title_hi": "बिजली काटने की चेतावनी",
+      "signals": [
+        "Urgent alert stating electricity power supply will be disconnected tonight at a specific hour due to an unpaid bill",
+        "Directs recipient to call a personal mobile number or electricity officer immediately",
+        "Directs recipient to download an APK or click an unverified payment link"
+      ],
+      "legit_look_alikes": "Power distribution utilities issue monthly bill notices and overdue reminders, but these include consumer account numbers and direct customers to pay through official state utility portals, billing centers, or authorized electricity bill collection points, never personal mobile numbers.",
+      "static_tip_en": "Power distribution companies do not send urgent disconnection notices asking customers to call personal mobile numbers.",
+      "static_tip_hi": "बिजली वितरण कंपनियां व्यक्तिगत मोबाइल नंबरों पर कॉल करने के लिए कहकर बिजली काटने की आपातकालीन चेतावनी नहीं भेजती हैं।",
+      "needs_verification": true
+    },
+    {
+      "id": "fake_job_task",
+      "title_en": "Part-time Job / Task Scam",
+      "title_hi": "पार्ट-टाइम नौकरी / टास्क घोटाला",
+      "signals": [
+        "Unsolicited offer for flexible work-from-home tasks like liking YouTube videos, rating hotels, or writing reviews for high daily pay",
+        "Initial small earnings are paid to build trust, followed by demands for prepaid security deposits or crypto investments to release larger earnings",
+        "Communication moves from SMS/WhatsApp to Telegram groups with fake participants celebrating payouts"
+      ],
+      "legit_look_alikes": "Legitimate corporate recruiters reach out regarding vetted employment opportunities, but genuine employers never require job candidates to deposit personal funds or purchase cryptocurrency to unlock earned wages or tasks.",
+      "static_tip_en": "Legitimate employers never require candidates to pay upfront fees, task deposits, or crypto to receive work or salary.",
+      "static_tip_hi": "वैध कंपनियां काम या वेतन देने के लिए उम्मीदवारों से कभी भी अग्रिम शुल्क या जमा राशि की मांग नहीं करती हैं।",
+      "needs_verification": true
+    },
+    {
+      "id": "digital_arrest",
+      "title_en": "Digital Arrest / Law Enforcement Impersonation",
+      "title_hi": "डिजिटल अरेस्ट / कानून प्रवर्तन अधिकारी का ढोंग",
+      "signals": [
+        "Caller or message claims to be police, CBI, ED, customs, or telecom department claiming an illegal package or money laundering linked to your Aadhaar/SIM",
+        "Demands recipient remain connected on video call (WhatsApp, Skype) under threat of immediate physical arrest",
+        "Demands recipient transfer personal savings to a government or RBI 'verification account' to prove innocence"
+      ],
+      "legit_look_alikes": "Law enforcement agencies issue formal written summons and conduct legal proceedings in person, but Indian law has no provision for 'digital arrest' or custodial interrogation over video calls, and officers never demand money transfers for verification.",
+      "static_tip_en": "Law enforcement agencies in India do not conduct arrests or demand money transfers over video calls or Skype.",
+      "static_tip_hi": "भारत में कानून प्रवर्तन एजेंसियां वीडियो कॉल पर गिरफ्तारी (डिजिटल अरेस्ट) नहीं करती हैं और न ही पैसे ट्रांसफर करने की मांग करती हैं।",
+      "needs_verification": true
+    },
+    {
+      "id": "bank_impersonation_otp",
+      "title_en": "Bank Impersonation / OTP & CVV Theft",
+      "title_hi": "बैंक का ढोंग / ओटीपी व सीवीवी चोरी",
+      "signals": [
+        "Caller or message claiming to be from your bank or card issuer stating card blocked, reward points expiring, or limit increase available",
+        "Urgent request to share one-time password (OTP), card number, CVV, or netbanking credentials to resolve the issue",
+        "Threatens that account will be closed or fees deducted if details are not shared immediately"
+      ],
+      "legit_look_alikes": "Banks send automated transactional OTPs and routine advisory alerts that explicitly advise customers never to share the code with anyone, including bank employees.",
+      "static_tip_en": "Bank representatives and customer care agents will never ask you for your OTP, PIN, password, or CVV.",
+      "static_tip_hi": "बैंक प्रतिनिधि या ग्राहक सेवा अधिकारी आपसे कभी भी आपका ओटीपी, पिन, पासवर्ड या सीवीवी नहीं मांगेंगे।",
+      "needs_verification": true
+    },
+    {
+      "id": "prize_lottery",
+      "title_en": "Lottery / Lucky Draw / Prize Scheme",
+      "title_hi": "लॉटरी / लकी ड्रॉ / पुरस्कार योजना",
+      "signals": [
+        "Message claims recipient has won a large lottery, car, or cash prize from a prominent brand, show (e.g. KBC), or shopping event",
+        "Demands an advance processing fee, registration fee, GST, or delivery charge to release the prize",
+        "Uses fake letters with government or company logos to establish legitimacy"
+      ],
+      "legit_look_alikes": "Brands occasionally run registered customer contests with published terms, but legitimate lotteries and contests do not require winners to deposit advance cash fees into private personal bank accounts to receive winnings.",
+      "static_tip_en": "Genuine lotteries and contests do not require winners to pay advance fees or processing charges to claim prizes.",
+      "static_tip_hi": "वास्तविक लॉटरी या प्रतियोगिताएं पुरस्कार देने के लिए अग्रिम शुल्क या प्रोसेसिंग चार्ज जमा करने की मांग नहीं करती हैं।",
+      "needs_verification": true
+    },
+    {
+      "id": "loan_app_harassment",
+      "title_en": "Instant Loan App / Extortion Harassment",
+      "title_hi": "इंस्टेंट लोन ऐप / उत्पीड़न व ब्लैकमेल",
+      "signals": [
+        "Offer of instant paperless loans without credit checks or documentation requiring installation of unknown mobile apps",
+        "Extortionate threats to contact phone contacts, circulate edited photos, or send fake police notices over alleged unpaid loan amounts",
+        "Disbursal of unauthorized tiny loan amounts followed by immediate demands for multiple-fold repayment"
+      ],
+      "legit_look_alikes": "Regulated NBFCs and banks offer digital credit through RBI-registered loan apps, conducting verified credit appraisals and adhering to formal fair-practice debt recovery codes that prohibit abusive contact access and threats.",
+      "static_tip_en": "RBI-regulated lenders must follow fair practice recovery codes and are prohibited from harassing contacts or issuing unauthorized threats.",
+      "static_tip_hi": "आरबीआई द्वारा विनियमित ऋणदाता निष्पक्ष व्यवहार संहिता का पालन करने के लिए बाध्य हैं और संपर्कों को परेशान करने या अनधिकृत धमकियां देने के लिए प्रतिबंधित हैं।",
+      "needs_verification": true
+    },
+    {
+      "id": "remote_access_app",
+      "title_en": "Remote Access App Installation Lure",
+      "title_hi": "रिमोट एक्सेस ऐप इंस्टॉलेशन का लालच",
+      "signals": [
+        "Caller or message instructs recipient to download remote desktop apps (e.g., AnyDesk, TeamViewer, RustDesk, QuickSupport) to fix a technical issue, refund money, or verify banking",
+        "Instructs recipient to share the 9-digit remote access code or grant screen sharing permissions",
+        "Directs recipient to open their mobile banking app while the remote screen-sharing session is active"
+      ],
+      "legit_look_alikes": "Corporate IT helpdesks use remote support software with employee authorization, but consumer banks, telecom companies, and e-commerce customer support do not instruct retail customers to install screen-sharing apps to receive refunds or fix account issues.",
+      "static_tip_en": "Legitimate customer support will not ask you to install remote desktop apps like AnyDesk or TeamViewer to fix consumer banking or refund issues.",
+      "static_tip_hi": "वैध ग्राहक सहायता उपभोक्ता बैंकिंग या रिफंड समस्याओं को हल करने के लिए एनीडेस्क या टीमव्यूअर जैसे रिमोट डेस्कटॉप ऐप इंस्टॉल करने के लिए नहीं कहेगी।",
+      "needs_verification": true
+    }
+  ]
+}

@@ -1,0 +1,50 @@
+{
+  "_comment": "Static emergency response steps based on user action. Never sent to the AI model.",
+  "states": {
+    "paid_money": {
+      "level": "urgent",
+      "heading_en": "Immediate Steps If You Sent Money",
+      "heading_hi": "यदि आपने पैसे भेज दिए हैं तो तत्काल कदम",
+      "steps_en": [
+        "Call the National Cyber Crime Helpline at 1930 immediately to report financial fraud and request transaction freezing.",
+        "Contact your bank or payment app support immediately using the official number on your card or passbook to block the account or transaction.",
+        "File a formal cybercrime report on the National Cyber Crime Reporting Portal at cybercrime.gov.in."
+      ],
+      "steps_hi": [
+        "वित्तीय धोखाधड़ी की सूचना देने और भुगतान रोकने के अनुरोध के लिए तुरंत 1930 पर राष्ट्रीय साइबर अपराध हेल्पलाइन पर कॉल करें।",
+        "लेन-देन या खाते को ब्लॉक करने के लिए अपने कार्ड या पासबुक पर दिए गए आधिकारिक नंबर का उपयोग करके तुरंत अपने बैंक या भुगतान ऐप सहायता से संपर्क करें।",
+        "राष्ट्रीय साइबर अपराध रिपोर्टिंग पोर्टल (cybercrime.gov.in) पर औपचारिक शिकायत दर्ज करें।"
+      ]
+    },
+    "shared_info": {
+      "level": "action_required",
+      "heading_en": "Steps If You Shared Sensitive Information",
+      "heading_hi": "यदि आपने संवेदनशील जानकारी साझा की है तो कदम",
+      "steps_en": [
+        "Change your account passwords and PINs immediately from a trusted device through the official website or app.",
+        "Contact your bank or card issuer through its official number to report compromised credentials and monitor for unauthorized activity.",
+        "Watch out for follow-up scam calls or messages, as scammers often attempt secondary impersonation attacks."
+      ],
+      "steps_hi": [
+        "आधिकारिक वेबसाइट या ऐप के माध्यम से किसी विश्वसनीय डिवाइस से तुरंत अपने खाते के पासवर्ड और पिन बदलें।",
+        "क्रेडेंशियल्स की चोरी की सूचना देने और अनधिकृत गतिविधि पर नज़र रखने के लिए आधिकारिक नंबर का उपयोग करके अपने बैंक या कार्ड जारीकर्ता से संपर्क करें।",
+        "बाद में आने वाले फर्जी कॉल या संदेशों से सतर्क रहें, क्योंकि जालसाज अक्सर दोबारा ठगने का प्रयास करते हैं।"
+      ]
+    },
+    "clicked_link": {
+      "level": "caution",
+      "heading_en": "Steps If You Clicked a Suspicious Link",
+      "heading_hi": "यदि आपने किसी संदिग्ध लिंक पर क्लिक किया है तो कदम",
+      "steps_en": [
+        "Do not enter any personal details, phone numbers, OTPs, or passwords on the opened page.",
+        "Close the browser tab or page immediately.",
+        "If you typed any credentials or downloaded any file, change your passwords from a safe device and consider running a security scan."
+      ],
+      "steps_hi": [
+        "खुले हुए पेज पर कोई भी व्यक्तिगत जानकारी, फोन नंबर, ओटीपी या पासवर्ड दर्ज न करें।",
+        "ब्राउज़र टैब या पेज को तुरंत बंद कर दें।",
+        "यदि आपने कोई विवरण दर्ज किया था या कोई फ़ाइल डाउनलोड की थी, तो किसी सुरक्षित डिवाइस से अपना पासवर्ड बदलें और सुरक्षा स्कैन करें।"
+      ]
+    }
+  }
+}

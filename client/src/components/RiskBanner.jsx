@@ -1,4 +1,5 @@
 import React from 'react';
+import { motion } from 'motion/react';
 import {
   CheckCircle2,
   AlertTriangle,
@@ -6,124 +7,148 @@ import {
   HelpCircle,
   Cpu,
   Clock,
+  ShieldCheck,
+  Zap,
 } from 'lucide-react';
 
 const RISK_CONFIG = {
   high_concern: {
     label: 'High Concern',
     icon: AlertOctagon,
-    badgeBg: 'bg-rose-950/80 text-rose-200 border-rose-500/40',
-    iconBg: 'bg-rose-500/20 text-rose-300 border-rose-500/40',
-    border: 'border-rose-500/30',
-    accent: 'text-rose-300',
-    description: 'Strong indicators of phishing, credential harvesting, or social engineering detected.',
+    badgeBg: 'bg-[#ff4d4d] text-white',
+    iconBg: 'bg-[#ff4d4d] text-white',
+    border: 'border-black',
+    accentText: 'text-[#d62828]',
+    description:
+      'Strong indicators of phishing, credential harvesting, or social engineering detected.',
   },
   suspicious: {
     label: 'Suspicious',
     icon: AlertTriangle,
-    badgeBg: 'bg-amber-950/80 text-amber-200 border-amber-500/40',
-    iconBg: 'bg-amber-500/20 text-amber-300 border-amber-500/40',
-    border: 'border-amber-500/30',
-    accent: 'text-amber-300',
-    description: 'Anomalous or manipulative patterns identified that warrant cautious independent verification.',
+    badgeBg: 'bg-[#fbbf24] text-black',
+    iconBg: 'bg-[#fbbf24] text-black',
+    border: 'border-black',
+    accentText: 'text-[#b45309]',
+    description:
+      'Anomalous or manipulative patterns identified that warrant cautious independent verification.',
   },
   low_concern: {
     label: 'Low Concern',
     icon: CheckCircle2,
-    badgeBg: 'bg-emerald-950/80 text-emerald-200 border-emerald-500/40',
-    iconBg: 'bg-emerald-500/20 text-emerald-300 border-emerald-500/40',
-    border: 'border-emerald-500/30',
-    accent: 'text-emerald-300',
-    description: 'No evident malicious lures found in the submitted content; standard routine patterns observed.',
+    badgeBg: 'bg-[#8bfb34] text-black',
+    iconBg: 'bg-[#8bfb34] text-black',
+    border: 'border-black',
+    accentText: 'text-[#15803d]',
+    description:
+      'No evident malicious lures found in the submitted content; standard routine patterns observed.',
   },
   inconclusive: {
     label: 'Inconclusive',
     icon: HelpCircle,
-    badgeBg: 'bg-slate-800/80 text-slate-200 border-slate-600/40',
-    iconBg: 'bg-slate-700/40 text-slate-300 border-slate-600/40',
-    border: 'border-slate-700/60',
-    accent: 'text-slate-300',
-    description: "Not enough evidence to judge. Here's what we could and couldn't tell.",
+    badgeBg: 'bg-[#e2e8f0] text-black',
+    iconBg: 'bg-[#e2e8f0] text-black',
+    border: 'border-black',
+    accentText: 'text-neutral-700',
+    description:
+      "Not enough evidence to judge. Here's what we could and couldn't tell.",
   },
 };
 
 export default function RiskBanner({ riskLevel, summary, model, latencyMs }) {
   const config = RISK_CONFIG[riskLevel] || RISK_CONFIG.inconclusive;
   const Icon = config.icon;
-
   const isInconclusive = riskLevel === 'inconclusive';
 
   return (
-    <article
-      className={`rounded-[10px] border p-4 bg-[#111827] ${config.border} flex flex-col gap-3`}
+    <motion.article
+      initial={{ opacity: 0, y: 15 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ type: 'spring', stiffness: 350, damping: 25 }}
+      className="bg-white border-2 border-black rounded-2xl p-5 sm:p-6 shadow-[6px_6px_0px_#000000] flex flex-col gap-4"
       aria-labelledby="risk-banner-title"
     >
-      {/* Header Row: Threat badge + Model/Latency metadata */}
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div className="flex items-center gap-2.5">
-          <div
-            className={`p-2 rounded-[8px] border flex items-center justify-center ${config.iconBg}`}
-            aria-hidden="true"
-          >
-            <Icon className="w-5 h-5" />
-          </div>
-          <div>
-            <div className="text-[11px] uppercase tracking-wider font-semibold text-slate-400">
-              Assessed Threat Level
-            </div>
-            <div
-              id="risk-banner-title"
-              className="text-base sm:text-lg font-bold tracking-tight text-[#fdfbf7] flex items-center gap-2"
-            >
-              <span>{config.label}</span>
-              <span
-                className={`text-[11px] font-medium px-2 py-0.5 rounded-[6px] border ${config.badgeBg}`}
-              >
-                {riskLevel.replace('_', ' ')}
-              </span>
-            </div>
-          </div>
+      {/* Kicker & Meta Header */}
+      <div className="flex flex-wrap items-center justify-between gap-3 border-b-2 border-neutral-100 pb-3">
+        <div className="flex items-center gap-2">
+          <span className="text-[10px] font-mono uppercase tracking-widest font-extrabold text-neutral-500">
+            SECURITY INTELLIGENCE REPORT
+          </span>
+          <span className="w-1.5 h-1.5 rounded-full bg-black inline-block" />
+          <span className="text-[10px] font-mono uppercase tracking-wider font-bold text-neutral-600">
+            DEFENSIVE EVALUATION
+          </span>
         </div>
 
-        {/* Model & Latency Metadata Chips */}
-        <div className="flex items-center gap-2 text-[11px] font-mono text-slate-400">
+        {/* Model & Latency Badges */}
+        <div className="flex items-center gap-2 text-xs font-mono">
           {model && (
-            <span className="flex items-center gap-1 px-2 py-1 rounded-[6px] bg-slate-900 border border-white/10">
-              <Cpu className="w-3 h-3 text-teal-400" aria-hidden="true" />
+            <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-[#faf8f3] text-black border-2 border-black shadow-[2px_2px_0px_#000000] font-bold">
+              <Cpu className="w-3.5 h-3.5" aria-hidden="true" />
               <span>{model}</span>
             </span>
           )}
           {typeof latencyMs === 'number' && (
-            <span className="flex items-center gap-1 px-2 py-1 rounded-[6px] bg-slate-900 border border-white/10">
-              <Clock className="w-3 h-3 text-slate-400" aria-hidden="true" />
+            <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md bg-white text-neutral-700 border border-neutral-300 font-semibold">
+              <Clock className="w-3.5 h-3.5 text-neutral-500" aria-hidden="true" />
               <span>{latencyMs.toLocaleString()}ms</span>
             </span>
           )}
         </div>
       </div>
 
-      {/* Inconclusive Calm Guidance */}
-      {isInconclusive && (
-        <div className="p-3 rounded-[8px] bg-slate-800/50 border border-slate-700/60 text-xs text-slate-300 flex items-start gap-2 leading-relaxed">
-          <HelpCircle className="w-4 h-4 text-slate-400 flex-shrink-0 mt-0.5" aria-hidden="true" />
+      {/* Main Threat Level Announcement */}
+      <div className="flex flex-wrap items-center justify-between gap-4">
+        <div className="flex items-center gap-3.5">
+          <motion.div
+            className={`p-3 rounded-xl border-2 border-black shadow-[3px_3px_0px_#000000] flex items-center justify-center ${config.iconBg}`}
+            whileHover={{ scale: 1.08, rotate: [0, -5, 5, 0] }}
+            transition={{ duration: 0.2 }}
+            aria-hidden="true"
+          >
+            <Icon className="w-6 h-6 stroke-[2.2]" />
+          </motion.div>
+
           <div>
-            <span className="font-semibold text-slate-200">
-              Not enough evidence to judge.
-            </span>{' '}
-            Here's what we could and couldn't tell: The message lacks sufficient distinct context or technical indicators. Treat any unexpected links or requests cautiously and verify through an independent channel.
+            <div className="text-[11px] uppercase tracking-wider font-extrabold text-neutral-500">
+              Assessed Threat Level
+            </div>
+            <div
+              id="risk-banner-title"
+              className="text-xl sm:text-2xl font-black tracking-tight text-neutral-950 flex items-center gap-2.5 flex-wrap"
+            >
+              <span>{config.label}</span>
+              <span
+                className={`text-xs font-mono font-black uppercase px-2.5 py-0.5 rounded-md border-2 border-black shadow-[2px_2px_0px_#000000] ${config.badgeBg}`}
+              >
+                {riskLevel.replace('_', ' ')}
+              </span>
+            </div>
           </div>
         </div>
-      )}
-
-      {/* Executive Summary */}
-      <div className="pt-2 border-t border-white/10">
-        <h3 className="text-xs font-semibold text-slate-300 uppercase tracking-wider mb-1.5">
-          Executive Summary
-        </h3>
-        <p className="text-sm text-slate-200 leading-relaxed bg-[#0a0f1d]/60 p-3 rounded-[8px] border border-white/5 break-words [overflow-wrap:anywhere]">
-          {summary}
-        </p>
       </div>
-    </article>
+
+      {/* Threat Description Note */}
+      <p className="text-xs font-medium text-neutral-600">
+        {config.description}
+      </p>
+
+      {/* Summary Box */}
+      <div className="p-4 rounded-xl bg-[#faf8f3] border-2 border-black text-neutral-900 leading-relaxed font-medium text-sm shadow-[2px_2px_0px_#000000]">
+        <div className="text-[10px] uppercase tracking-widest font-mono font-extrabold text-neutral-500 mb-1">
+          ANALYSIS SUMMARY
+        </div>
+        <div>{summary}</div>
+      </div>
+
+      {/* Inconclusive Helper */}
+      {isInconclusive && (
+        <div className="p-3 rounded-lg bg-amber-50 border border-amber-300 text-xs text-amber-900 flex items-start gap-2">
+          <AlertTriangle className="w-4 h-4 text-amber-600 flex-shrink-0 mt-0.5" aria-hidden="true" />
+          <p>
+            The model could not identify conclusive phishing indicators or confirming proof of legitimacy. Always verify requests out-of-band via official, independently discovered communication channels.
+          </p>
+        </div>
+      )}
+    </motion.article>
   );
 }

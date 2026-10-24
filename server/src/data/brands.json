@@ -1,0 +1,227 @@
+{
+  "_comment": "Small, hand-maintained, non-exhaustive. A domain not in this list proves nothing. Official domains must be verified before relying on them.",
+  "brands": [
+    {
+      "id": "sbi",
+      "name": "State Bank of India",
+      "aliases": ["sbi", "state bank of india", "onlinesbi", "statebank"],
+      "keywords": ["sbi", "onlinesbi"],
+      "official_domains": ["sbi.co.in", "onlinesbi.sbi"],
+      "category": "banking",
+      "note": "Primary retail public bank in India; onlinesbi.sbi is modern portal",
+      "needs_verification": true
+    },
+    {
+      "id": "hdfc",
+      "name": "HDFC Bank",
+      "aliases": ["hdfc", "hdfc bank", "hdfcbank"],
+      "keywords": ["hdfc", "hdfcbank"],
+      "official_domains": ["hdfcbank.com", "hdfc.com"],
+      "category": "banking"
+    },
+    {
+      "id": "icici",
+      "name": "ICICI Bank",
+      "aliases": ["icici", "icici bank", "icicibank"],
+      "keywords": ["icici", "icicibank"],
+      "official_domains": ["icicibank.com"],
+      "category": "banking"
+    },
+    {
+      "id": "axis",
+      "name": "Axis Bank",
+      "aliases": ["axis", "axis bank", "axisbank"],
+      "keywords": ["axisbank"],
+      "official_domains": ["axisbank.com"],
+      "category": "banking"
+    },
+    {
+      "id": "kotak",
+      "name": "Kotak Mahindra Bank",
+      "aliases": ["kotak", "kotak bank", "kotak mahindra"],
+      "keywords": ["kotak", "kotakbank"],
+      "official_domains": ["kotak.com"],
+      "category": "banking"
+    },
+    {
+      "id": "pnb",
+      "name": "Punjab National Bank",
+      "aliases": ["pnb", "punjab national bank", "pnbindia"],
+      "keywords": ["pnb", "pnbindia"],
+      "official_domains": ["pnbindia.in"],
+      "category": "banking"
+    },
+    {
+      "id": "bob",
+      "name": "Bank of Baroda",
+      "aliases": ["bank of baroda", "bob", "bankofbaroda"],
+      "keywords": ["bankofbaroda"],
+      "official_domains": ["bankofbaroda.in"],
+      "category": "banking"
+    },
+    {
+      "id": "paytm",
+      "name": "Paytm",
+      "aliases": ["paytm", "one97"],
+      "keywords": ["paytm"],
+      "official_domains": ["paytm.com", "paytmbank.com"],
+      "category": "financial_services"
+    },
+    {
+      "id": "phonepe",
+      "name": "PhonePe",
+      "aliases": ["phonepe", "phone pe"],
+      "keywords": ["phonepe"],
+      "official_domains": ["phonepe.com"],
+      "category": "financial_services"
+    },
+    {
+      "id": "gpay",
+      "name": "Google Pay",
+      "aliases": ["google pay", "gpay"],
+      "keywords": ["gpay", "googlepay"],
+      "official_domains": ["google.com"],
+      "category": "financial_services"
+    },
+    {
+      "id": "google",
+      "name": "Google",
+      "aliases": ["google", "gmail"],
+      "keywords": ["google", "gmail"],
+      "official_domains": ["google.com", "google.co.in"],
+      "category": "technology"
+    },
+    {
+      "id": "amazon",
+      "name": "Amazon",
+      "aliases": ["amazon", "amazon pay", "amazon prime"],
+      "keywords": ["amazon"],
+      "official_domains": ["amazon.com", "amazon.in"],
+      "category": "ecommerce"
+    },
+    {
+      "id": "flipkart",
+      "name": "Flipkart",
+      "aliases": ["flipkart"],
+      "keywords": ["flipkart"],
+      "official_domains": ["flipkart.com"],
+      "category": "ecommerce"
+    },
+    {
+      "id": "microsoft",
+      "name": "Microsoft",
+      "aliases": ["microsoft", "office365", "outlook", "onedrive", "live"],
+      "keywords": ["microsoft", "office365", "onedrive"],
+      "official_domains": ["microsoft.com", "office.com", "live.com", "outlook.com"],
+      "category": "technology"
+    },
+    {
+      "id": "apple",
+      "name": "Apple",
+      "aliases": ["apple", "icloud", "apple id"],
+      "keywords": ["apple", "icloud"],
+      "official_domains": ["apple.com", "icloud.com"],
+      "category": "technology"
+    },
+    {
+      "id": "netflix",
+      "name": "Netflix",
+      "aliases": ["netflix"],
+      "keywords": ["netflix"],
+      "official_domains": ["netflix.com"],
+      "category": "entertainment"
+    },
+    {
+      "id": "paypal",
+      "name": "PayPal",
+      "aliases": ["paypal"],
+      "keywords": ["paypal"],
+      "official_domains": ["paypal.com", "paypal.me"],
+      "category": "financial_services"
+    },
+    {
+      "id": "india_post",
+      "name": "India Post",
+      "aliases": ["india post", "indiapost", "post office", "ippb"],
+      "keywords": ["indiapost", "ippb"],
+      "official_domains": ["indiapost.gov.in", "ippbonline.com"],
+      "category": "postal_government",
+      "note": "ippbonline.com is India Post Payments Bank",
+      "needs_verification": true
+    },
+    {
+      "id": "dhl",
+      "name": "DHL",
+      "aliases": ["dhl", "dhl express"],
+      "keywords": ["dhl"],
+      "official_domains": ["dhl.com", "dhl.de"],
+      "category": "logistics"
+    },
+    {
+      "id": "fedex",
+      "name": "FedEx",
+      "aliases": ["fedex", "federal express"],
+      "keywords": ["fedex"],
+      "official_domains": ["fedex.com"],
+      "category": "logistics"
+    },
+    {
+      "id": "income_tax",
+      "name": "Income Tax Department",
+      "aliases": ["income tax", "incometax", "income tax department", "it department", "incometaxindia"],
+      "keywords": ["incometax", "incometaxindia"],
+      "official_domains": ["incometax.gov.in"],
+      "category": "government",
+      "note": "e-filing portal is incometax.gov.in; incometaxindia.gov.in may be used for informational portal",
+      "needs_verification": true
+    },
+    {
+      "id": "uidai",
+      "name": "UIDAI (Aadhaar)",
+      "aliases": ["uidai", "aadhaar", "aadhar"],
+      "keywords": ["uidai", "aadhaar", "aadhar"],
+      "official_domains": ["uidai.gov.in"],
+      "category": "government"
+    },
+    {
+      "id": "epfo",
+      "name": "EPFO",
+      "aliases": ["epfo", "epfindia", "provident fund"],
+      "keywords": ["epfo", "epfindia"],
+      "official_domains": ["epfindia.gov.in"],
+      "category": "government"
+    },
+    {
+      "id": "irctc",
+      "name": "IRCTC",
+      "aliases": ["irctc", "indian railway catering and tourism corporation"],
+      "keywords": ["irctc"],
+      "official_domains": ["irctc.co.in"],
+      "category": "travel_government"
+    },
+    {
+      "id": "whatsapp",
+      "name": "WhatsApp",
+      "aliases": ["whatsapp"],
+      "keywords": ["whatsapp"],
+      "official_domains": ["whatsapp.com"],
+      "category": "social_media"
+    },
+    {
+      "id": "facebook",
+      "name": "Facebook",
+      "aliases": ["facebook", "meta", "fb"],
+      "keywords": ["facebook"],
+      "official_domains": ["facebook.com", "fb.com", "meta.com"],
+      "category": "social_media"
+    },
+    {
+      "id": "instagram",
+      "name": "Instagram",
+      "aliases": ["instagram", "insta"],
+      "keywords": ["instagram"],
+      "official_domains": ["instagram.com"],
+      "category": "social_media"
+    }
+  ]
+}

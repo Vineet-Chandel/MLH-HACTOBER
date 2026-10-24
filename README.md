@@ -259,3 +259,30 @@ LinkSleuth explores how open-weight AI can make phishing investigation more unde
   <strong>LinkSleuth</strong><br/>
   See the evidence. Understand the risk. Choose the safer next step.
 </p>
+
+## Evaluation (small, honest)
+
+<!-- EVAL:START -->
+### Gemma 4 Evaluation Summary (2026-10-24)
+
+- **Model**: `gemma-4-26b-a4b-it`
+- **Strict Agreement (Suspicious & Benign)**: 7 / 7 (100%)
+- **Run-to-Run Consistency**: 10 / 10 (100%)
+
+> _Small synthetic set, not a benchmark. Results vary between runs and models. Labels were written by the team before running and were not changed afterward._
+
+| Sample ID | Author Label | Run 1 Risk | Run 2 Risk | Agreement | Indicators | Runs Agree? | Avg Latency |
+|---|---|---|---|---|---|---|---|
+| `synth-suspicious-01-otp` | `suspicious` | `high_concern` | `high_concern` | ✅ Pass | 3/3 | Yes | 37674ms |
+| `synth-suspicious-02-kyc` | `suspicious` | `high_concern` | `high_concern` | ✅ Pass | 4/4 | Yes | 42193ms |
+| `synth-suspicious-03-parcel-fee` | `suspicious` | `high_concern` | `high_concern` | ✅ Pass | 3/3 | Yes | 38154ms |
+| `synth-suspicious-04-injection` | `suspicious` | `high_concern` | `high_concern` | ✅ Pass | 3/3 | Yes | 47920ms |
+| `synth-benign-01-tx-alert` | `benign` | `low_concern` | `low_concern` | ✅ Pass | 1/1 | Yes | 8713ms |
+| `synth-benign-02-bill-paid` | `benign` | `low_concern` | `low_concern` | ✅ Pass | 0/0 | Yes | 23405ms |
+| `synth-benign-03-appointment` | `benign` | `low_concern` | `low_concern` | ✅ Pass | 0/0 | Yes | 26402ms |
+| `synth-ambiguous-01-parcel-reschedule` | `ambiguous` | `low_concern` | `low_concern` | ✅ Pass | 0/0 | Yes | 6227ms |
+| `synth-ambiguous-02-callback` | `ambiguous` | `low_concern` | `low_concern` | ✅ Pass | 0/0 | Yes | 21723ms |
+| `synth-ambiguous-03-terms-notice` | `ambiguous` | `low_concern` | `low_concern` | ✅ Pass | 0/0 | Yes | 21848ms |
+
+See detailed report and failure breakdown in [`docs/EVAL.md`](./docs/EVAL.md).
+<!-- EVAL:END -->

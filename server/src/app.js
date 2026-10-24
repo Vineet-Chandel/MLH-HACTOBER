@@ -37,6 +37,8 @@ app.use(express.json({ limit: '1mb' }));
 import { AnalyzeRequestSchema, AnalyzeImageRequestSchema } from './validators/analysisSchema.js';
 import { analyzeMessage, analyzeImage, AnalysisError } from './services/analyze.js';
 import { validateImageFile, ImageValidationError } from './validators/imageValidator.js';
+import { extractUrls, runUrlChecks } from './services/urlInspect.js';
+import { buildStaticGuidance } from './services/staticGuidance.js';
 import multer from 'multer';
 
 const upload = multer({
@@ -102,7 +104,32 @@ app.post('/api/analyze', analyzeLimiter, async (req, res, next) => {
     }
 
     const analysisResult = await analyzeMessage(parseResult.data);
-    res.json(analysisResult);
+
+    // Deterministic rule-based URL inspection (no network calls, separate from AI)
+    const candidateUrls = [];
+    if (parseResult.data.url) {
+      candidateUrls.push({ raw: parseResult.data.url, source: 'url_field' });
+    }
+    const extracted = extractUrls(parseResult.data.message);
+    for (const item of extracted) {
+      candidateUrls.push({ raw: item.raw, source: 'message_text' });
+    }
+
+    const url_checks = runUrlChecks(candidateUrls);
+
+    const static_guidance = buildStaticGuidance({
+      scam_pattern: analysisResult.analysis?.scam_pattern,
+      output_language: parseResult.data.output_language,
+      detected_language: analysisResult.analysis?.detected_language,
+      user_state: parseResult.data.user_state,
+      region: 'IN',
+    });
+
+    res.json({
+      ...analysisResult,
+      url_checks,
+      static_guidance,
+    });
   } catch (error) {
     next(error);
   }
@@ -139,9 +166,44 @@ app.post(
         mimeType,
         message_type: parseResult.data.message_type,
         context_note: parseResult.data.context_note,
+        output_language: parseResult.data.output_language,
       });
 
-      res.json(analysisResult);
+      // Deterministic rule-based URL inspection from image observations
+      const candidateUrls = [];
+      if (parseResult.data.url) {
+        candidateUrls.push({ raw: parseResult.data.url, source: 'url_field' });
+      }
+
+      // 1. URLs extracted from transcribed text (source: "transcript")
+      const transcriptText = analysisResult.analysis?.image_observations?.transcribed_text || '';
+      const extractedTranscript = extractUrls(transcriptText);
+      for (const item of extractedTranscript) {
+        candidateUrls.push({ raw: item.raw, source: 'transcript' });
+      }
+
+      // 2. URLs read by the model (source: "model_visible_urls" if not already in transcript)
+      if (Array.isArray(analysisResult.analysis?.image_observations?.visible_urls)) {
+        for (const vUrl of analysisResult.analysis.image_observations.visible_urls) {
+          candidateUrls.push({ raw: vUrl, source: 'model_visible_urls' });
+        }
+      }
+
+      const url_checks = runUrlChecks(candidateUrls);
+
+      const static_guidance = buildStaticGuidance({
+        scam_pattern: analysisResult.analysis?.scam_pattern,
+        output_language: parseResult.data.output_language,
+        detected_language: analysisResult.analysis?.detected_language,
+        user_state: parseResult.data.user_state,
+        region: 'IN',
+      });
+
+      res.json({
+        ...analysisResult,
+        url_checks,
+        static_guidance,
+      });
     } catch (error) {
       next(error);
     }

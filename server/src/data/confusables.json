@@ -1,0 +1,33 @@
+{
+  "_comment": "Small, hand-curated mapping of common visual confusable characters and character pairs to ASCII equivalents for deterministic spoof detection.",
+  "single_char": {
+    "а": "a",
+    "е": "e",
+    "о": "o",
+    "р": "p",
+    "с": "c",
+    "х": "x",
+    "у": "y",
+    "ѕ": "s",
+    "і": "i",
+    "ј": "j",
+    "ο": "o",
+    "ν": "v",
+    "α": "a",
+    "ι": "i",
+    "κ": "k",
+    "ρ": "p",
+    "τ": "t",
+    "υ": "u",
+    "χ": "x"
+  },
+  "digit_confusables": {
+    "0": "o",
+    "1": "l",
+    "5": "s"
+  },
+  "multi_char": {
+    "rn": "m",
+    "vv": "w"
+  }
+}

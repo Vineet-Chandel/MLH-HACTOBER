@@ -1,65 +1,72 @@
 @import "tailwindcss";
 
 :root {
-  color-scheme: dark;
+  color-scheme: light;
 
   /* Workspace & Card Backgrounds */
-  --bg-workspace: #0a0f1d;
-  --bg-card: #111827;
-  --bg-card-subtle: #0f172a;
-  --bg-reading-surface: #fdfbf7;
-  --text-reading: #0f172a;
+  --bg-workspace: #f6f4ee;
+  --bg-card: #ffffff;
+  --bg-card-subtle: #faf8f3;
+  --bg-reading-surface: #ffffff;
+  --text-reading: #0a0a0a;
 
   /* Typography Colors */
-  --text-primary: #fdfbf7;
-  --text-muted: #94a3b8;
-  --text-dim: #64748b;
+  --text-primary: #0a0a0a;
+  --text-muted: #52525b;
+  --text-dim: #71717a;
 
-  /* Security Accent: Restrained Teal */
-  --accent-teal: #0d9488;
-  --accent-teal-hover: #14b8a6;
-  --accent-teal-subtle: rgba(13, 148, 136, 0.15);
+  /* Security Accent: Signature Electric Lime */
+  --accent-lime: #8bfb34;
+  --accent-lime-hover: #7ce62c;
+  --accent-lime-subtle: rgba(139, 251, 52, 0.2);
 
-  /* Severity Tokens (paired with text labels and icons for WCAG AA) */
-  --severity-high: #f43f5e;
-  --severity-high-bg: rgba(244, 63, 94, 0.12);
-  --severity-high-border: rgba(244, 63, 94, 0.35);
+  /* Solid Black Border & Shadow Tokens */
+  --neo-border: #000000;
+  --neo-shadow: #000000;
 
-  --severity-medium: #f59e0b;
-  --severity-medium-bg: rgba(245, 158, 11, 0.12);
-  --severity-medium-border: rgba(245, 158, 11, 0.35);
+  /* Severity Tokens (High contrast WCAG AA compliant with solid black borders) */
+  --severity-high: #ff4d4d;
+  --severity-high-bg: #fee2e2;
+  --severity-high-border: #000000;
 
-  --severity-low: #10b981;
-  --severity-low-bg: rgba(16, 185, 129, 0.12);
-  --severity-low-border: rgba(16, 185, 129, 0.35);
+  --severity-medium: #fbbf24;
+  --severity-medium-bg: #fef3c7;
+  --severity-medium-border: #000000;
 
-  --severity-inconclusive: #94a3b8;
-  --severity-inconclusive-bg: rgba(148, 163, 184, 0.12);
-  --severity-inconclusive-border: rgba(148, 163, 184, 0.35);
+  --severity-low: #8bfb34;
+  --severity-low-bg: #dcfce7;
+  --severity-low-border: #000000;
 
-  /* Reading Surface Highlight Colors (High contrast WCAG AA) */
+  --severity-inconclusive: #cbd5e1;
+  --severity-inconclusive-bg: #f1f5f9;
+  --severity-inconclusive-border: #000000;
+
+  /* Reading Surface Highlight Colors */
   --highlight-high-bg: #fee2e2;
   --highlight-high-text: #991b1b;
-  --highlight-high-border: #f87171;
+  --highlight-high-border: #ef4444;
 
   --highlight-medium-bg: #fef3c7;
   --highlight-medium-text: #92400e;
-  --highlight-medium-border: #fcd34d;
+  --highlight-medium-border: #f59e0b;
 
-  --highlight-low-bg: #ccfbf1;
-  --highlight-low-text: #115e59;
-  --highlight-low-border: #5eead4;
+  --highlight-low-bg: #dcfce7;
+  --highlight-low-text: #166534;
+  --highlight-low-border: #22c55e;
 }
 
 html, body {
   overflow-x: hidden;
   max-width: 100vw;
+  min-height: 100vh;
 }
 
 body {
   margin: 0;
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
   background-color: var(--bg-workspace);
+  background-image: radial-gradient(#d3cec2 1.25px, transparent 1.25px);
+  background-size: 20px 20px;
   color: var(--text-primary);
   -webkit-font-smoothing: antialiased;
 }
@@ -82,9 +89,9 @@ body {
 
 /* Accessible focus indicator across all keyboard navigation */
 *:focus-visible {
-  outline: 2px solid #14b8a6 !important;
+  outline: 2px solid #000000 !important;
   outline-offset: 2px !important;
-  box-shadow: 0 0 0 3px rgba(20, 184, 166, 0.35) !important;
+  box-shadow: 0 0 0 3px rgba(0, 0, 0, 0.25) !important;
 }
 
 /* Reduced motion support */

@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { motion, AnimatePresence } from 'motion/react';
 import {
   UserX,
   Clock,
@@ -15,7 +16,9 @@ import {
   ChevronUp,
   Crosshair,
   AlertCircle,
+  ArrowRight,
 } from 'lucide-react';
+import NeoButton from './NeoButton.jsx';
 
 const CATEGORY_MAP = {
   impersonation: { label: 'Impersonation', icon: UserX },
@@ -32,23 +35,20 @@ const SEVERITY_CONFIG = {
   high: {
     label: 'High Severity',
     icon: AlertOctagon,
-    badge: 'bg-rose-950/70 text-rose-300 border-rose-500/40',
-    border: 'border-rose-500/30',
-    quoteBg: 'bg-rose-950/20 text-rose-200 border-rose-500/20',
+    badge: 'bg-[#ff4d4d] text-white',
+    quoteBg: 'bg-[#fee2e2] text-[#991b1b] border-2 border-[#ef4444]',
   },
   medium: {
     label: 'Medium Severity',
     icon: AlertTriangle,
-    badge: 'bg-amber-950/70 text-amber-300 border-amber-500/40',
-    border: 'border-amber-500/30',
-    quoteBg: 'bg-amber-950/20 text-amber-200 border-amber-500/20',
+    badge: 'bg-[#fbbf24] text-black',
+    quoteBg: 'bg-[#fef3c7] text-[#92400e] border-2 border-[#f59e0b]',
   },
   low: {
     label: 'Low Severity',
     icon: CheckCircle2,
-    badge: 'bg-emerald-950/70 text-emerald-300 border-emerald-500/40',
-    border: 'border-emerald-500/30',
-    quoteBg: 'bg-emerald-950/20 text-emerald-200 border-emerald-500/20',
+    badge: 'bg-[#8bfb34] text-black',
+    quoteBg: 'bg-[#dcfce7] text-[#166534] border-2 border-[#22c55e]',
   },
 };
 
@@ -61,11 +61,9 @@ export default function EvidenceCard({
   onJumpToHighlight,
   inputType = 'text',
 }) {
-  // Collapsible: high severity expanded by default, medium/low collapsed by default
   const [isOpen, setIsOpen] = useState(indicator.severity === 'high');
   const cardRef = useRef(null);
 
-  // If card becomes active, auto-scroll and ensure it is open
   useEffect(() => {
     if (isActive) {
       setIsOpen(true);
@@ -85,149 +83,130 @@ export default function EvidenceCard({
   const isVisual = indicator.evidence_source === 'visual_element';
 
   return (
-    <article
+    <motion.article
       ref={cardRef}
       id={`evidence-card-${index}`}
       tabIndex={0}
       onFocus={() => onFocusCard?.(index)}
-      className={`rounded-[10px] border bg-[#111827] transition-all duration-200 ${sevMeta.border} ${
+      initial={{ opacity: 0, y: 10 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.2 }}
+      className={`rounded-xl border-2 border-black bg-white transition-all duration-150 p-4 sm:p-5 flex flex-col gap-3 ${
         isActive
-          ? 'ring-2 ring-teal-400 ring-offset-2 ring-offset-[#0a0f1d]'
-          : 'hover:border-white/20'
-      } p-3.5 sm:p-4 flex flex-col gap-2.5`}
+          ? 'shadow-[6px_6px_0px_#000000] ring-2 ring-black'
+          : 'shadow-[4px_4px_0px_#000000] hover:shadow-[5px_5px_0px_#000000]'
+      }`}
       aria-labelledby={`card-title-${index}`}
     >
       {/* Top Header Row */}
-      <div className="flex items-center justify-between gap-2">
-        <div className="flex items-center gap-2 flex-wrap">
-          {/* Card index tag */}
-          <span className="text-[11px] font-mono font-bold px-2 py-0.5 rounded-[6px] bg-slate-900 border border-white/10 text-slate-300">
-            #{displayNumber}
+      <div className="flex items-start justify-between gap-3">
+        <div className="flex items-center gap-2.5 flex-wrap">
+          {/* Indicator Index Badge */}
+          <span className="font-mono text-xs font-black px-2 py-0.5 rounded-md bg-black text-white border border-black shadow-[1px_1px_0px_#000000]">
+            #{displayNumber || index + 1}
           </span>
-
-          {/* Category label with icon */}
-          <div className="flex items-center gap-1.5 text-xs font-semibold text-slate-200">
-            <CategoryIcon className="w-3.5 h-3.5 text-teal-400" aria-hidden="true" />
-            <span id={`card-title-${index}`}>{catMeta.label}</span>
-          </div>
 
           {/* Severity Badge */}
           <span
-            className={`flex items-center gap-1 text-[10px] font-semibold uppercase tracking-wider px-2 py-0.5 rounded-[6px] border ${sevMeta.badge}`}
+            className={`inline-flex items-center gap-1 text-[11px] font-mono font-bold uppercase px-2 py-0.5 rounded-md border-2 border-black shadow-[2px_2px_0px_#000000] ${sevMeta.badge}`}
           >
-            <SeverityIcon className="w-3 h-3" aria-hidden="true" />
+            <SeverityIcon className="w-3.5 h-3.5" aria-hidden="true" />
             <span>{sevMeta.label}</span>
           </span>
 
-          {/* Source Tag for Image Analysis */}
-          {inputType === 'image' && (
-            <span className="text-[10px] font-mono px-2 py-0.5 rounded-[6px] bg-slate-800 text-slate-300 border border-slate-700">
-              {isVisual ? 'Visual element' : 'From transcribed text'}
-            </span>
-          )}
+          {/* Category Chip */}
+          <span className="inline-flex items-center gap-1 text-xs font-semibold px-2 py-0.5 rounded-md bg-[#faf8f3] text-neutral-800 border border-neutral-300">
+            <CategoryIcon className="w-3.5 h-3.5 text-neutral-600" aria-hidden="true" />
+            <span>{catMeta.label}</span>
+          </span>
         </div>
 
-        {/* Toggle Collapse Button */}
-        <button
+        {/* Collapsible toggle button */}
+        <motion.button
           type="button"
           onClick={() => setIsOpen((prev) => !prev)}
           aria-expanded={isOpen}
-          aria-label={isOpen ? 'Collapse indicator details' : 'Expand indicator details'}
-          className="p-1 rounded-[6px] text-slate-400 hover:text-white hover:bg-slate-800 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-400 cursor-pointer"
+          aria-controls={`card-body-${index}`}
+          className="p-1 rounded-md border-2 border-black bg-[#faf8f3] hover:bg-neutral-100 cursor-pointer shadow-[2px_2px_0px_#000000]"
+          whileHover={{ x: -1, y: -1 }}
+          whileTap={{ x: 1, y: 1, boxShadow: '0px 0px 0px #000' }}
+          title={isOpen ? 'Collapse card' : 'Expand card'}
         >
           {isOpen ? (
-            <ChevronUp className="w-4 h-4" aria-hidden="true" />
+            <ChevronUp className="w-4 h-4 text-black" aria-hidden="true" />
           ) : (
-            <ChevronDown className="w-4 h-4" aria-hidden="true" />
+            <ChevronDown className="w-4 h-4 text-black" aria-hidden="true" />
           )}
-        </button>
+        </motion.button>
       </div>
 
-      {/* Quoted Evidence Monospace block */}
-      <div className="flex flex-col gap-1">
-        <div className="flex items-center justify-between text-[11px] flex-wrap gap-1">
-          <span className="font-semibold text-slate-400 uppercase tracking-wider">
-            {isVisual ? 'Visual Evidence:' : 'Quoted Evidence:'}
-          </span>
+      {/* Main Signal Title */}
+      <h4
+        id={`card-title-${index}`}
+        className="text-sm sm:text-base font-bold text-neutral-900 leading-snug"
+      >
+        {indicator.signal}
+      </h4>
 
-          {/* Grounding Verification Badge */}
-          {inputType === 'image' ? (
-            isVisual ? (
-              <span className="flex items-center gap-1 text-[10px] font-medium text-teal-300 bg-teal-950/70 border border-teal-500/30 px-2 py-0.5 rounded-[6px]">
-                <CheckCircle2 className="w-3 h-3 text-teal-400" aria-hidden="true" />
-                <span>Visual observation (layout / logo / pattern)</span>
-              </span>
-            ) : isVerified ? (
-              <span className="flex items-center gap-1 text-[10px] font-medium text-teal-300 bg-teal-950/70 border border-teal-500/30 px-2 py-0.5 rounded-[6px]">
-                <CheckCircle2 className="w-3 h-3 text-teal-400" aria-hidden="true" />
-                <span>Matches the model&apos;s reading of the image, not independently verified</span>
-              </span>
-            ) : (
-              <span className="flex items-center gap-1 text-[10px] font-medium text-amber-300 bg-amber-950/70 border border-amber-500/30 px-2 py-0.5 rounded-[6px]">
-                <AlertCircle className="w-3 h-3 text-amber-400" aria-hidden="true" />
-                <span>Not found in model transcript, treat with caution</span>
-              </span>
-            )
-          ) : isVerified ? (
-            <span className="flex items-center gap-1 text-[10px] font-medium text-emerald-300 bg-emerald-950/70 border border-emerald-500/30 px-2 py-0.5 rounded-[6px]">
-              <CheckCircle2 className="w-3 h-3 text-emerald-400" aria-hidden="true" />
-              <span>Quote verified in your message</span>
-            </span>
-          ) : (
-            <span className="flex items-center gap-1 text-[10px] font-medium text-amber-300 bg-amber-950/70 border border-amber-500/30 px-2 py-0.5 rounded-[6px]">
-              <AlertCircle className="w-3 h-3 text-amber-400" aria-hidden="true" />
-              <span>Not found in your message, treat with caution</span>
-            </span>
-          )}
-        </div>
-
-        <div
-          className={`font-mono text-xs p-2.5 rounded-[8px] border break-words break-all [overflow-wrap:anywhere] leading-relaxed ${sevMeta.quoteBg}`}
-        >
-          &ldquo;{indicator.evidence}&rdquo;
-        </div>
-      </div>
-
-      {/* Collapsible Body Details */}
-      {isOpen && (
-        <div className="flex flex-col gap-2.5 pt-2 border-t border-white/5 animate-fadeIn">
-          {/* Why it matters */}
-          <div>
-            <div className="text-[11px] font-semibold text-slate-300 uppercase tracking-wider mb-1">
-              Why it matters
-            </div>
-            <p className="text-xs text-slate-200 leading-relaxed bg-[#0a0f1d]/50 p-2.5 rounded-[8px] border border-white/5">
-              {indicator.explanation}
-            </p>
-          </div>
-
-          {/* Alternative explanation / uncertainty */}
-          {indicator.uncertainty && (
-            <div>
-              <div className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider mb-1 flex items-center gap-1">
-                <span>Alternative explanation / uncertainty</span>
+      {/* Expandable Body */}
+      <AnimatePresence>
+        {isOpen && (
+          <motion.div
+            id={`card-body-${index}`}
+            initial={{ opacity: 0, height: 0 }}
+            animate={{ opacity: 1, height: 'auto' }}
+            exit={{ opacity: 0, height: 0 }}
+            transition={{ duration: 0.18 }}
+            className="flex flex-col gap-3 overflow-hidden pt-1"
+          >
+            {/* Grounded Evidence Quote Box */}
+            <div className="flex flex-col gap-1.5">
+              <div className="flex items-center justify-between text-[11px] font-mono font-bold uppercase tracking-wider text-neutral-500">
+                <span>{isVisual ? 'Observed Visual Element:' : 'Cited Text Quote:'}</span>
+                {isVerified ? (
+                  <span className="text-[#15803d] flex items-center gap-1 font-bold">
+                    <CheckCircle2 className="w-3.5 h-3.5" aria-hidden="true" />
+                    VERIFIED IN INPUT
+                  </span>
+                ) : (
+                  <span className="text-[#b45309] flex items-center gap-1 font-bold">
+                    <AlertCircle className="w-3.5 h-3.5" aria-hidden="true" />
+                    UNVERIFIED CITATION
+                  </span>
+                )}
               </div>
-              <p className="text-xs text-slate-400 italic leading-relaxed bg-[#0a0f1d]/30 p-2 rounded-[8px] border border-white/5">
-                {indicator.uncertainty}
-              </p>
-            </div>
-          )}
 
-          {/* Jump to Highlight Button (if verified) */}
-          {isVerified && onJumpToHighlight && (
-            <div className="pt-1 flex justify-end">
-              <button
-                type="button"
-                onClick={() => onJumpToHighlight(index)}
-                className="flex items-center gap-1 text-[11px] font-medium text-teal-300 hover:text-teal-200 py-1 px-2.5 rounded-[6px] bg-teal-950/60 border border-teal-500/30 hover:bg-teal-900/60 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-400 cursor-pointer"
+              <blockquote
+                className={`p-3 rounded-lg text-xs leading-relaxed font-mono break-words ${sevMeta.quoteBg} shadow-[2px_2px_0px_#000000]`}
               >
-                <Crosshair className="w-3 h-3" aria-hidden="true" />
-                <span>Jump to quote in message</span>
-              </button>
+                &ldquo;{indicator.quote || 'No specific quote provided'}&rdquo;
+              </blockquote>
             </div>
-          )}
-        </div>
-      )}
-    </article>
+
+            {/* Explanation Note */}
+            <div className="text-xs text-neutral-700 leading-relaxed font-medium bg-[#faf8f3] p-3 rounded-lg border border-neutral-300">
+              <span className="font-bold text-neutral-900">Why this matters: </span>
+              {indicator.explanation}
+            </div>
+
+            {/* Footer / Jump to Highlight action button */}
+            {isVerified && onJumpToHighlight && (
+              <div className="pt-2 flex justify-end">
+                <NeoButton
+                  size="sm"
+                  variant="primary"
+                  onClick={() => onJumpToHighlight(index)}
+                  className="group"
+                >
+                  <Crosshair className="w-3.5 h-3.5 mr-1" aria-hidden="true" />
+                  <span>Inspect in Content</span>
+                  <ArrowRight className="w-3.5 h-3.5 ml-1 transition-transform group-hover:translate-x-1" aria-hidden="true" />
+                </NeoButton>
+              </div>
+            )}
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </motion.article>
   );
 }

@@ -1,0 +1,54 @@
+{
+  "region": "IN",
+  "label": "India",
+  "resources": [
+    {
+      "id": "ncrp",
+      "name_en": "National Cyber Crime Reporting Portal",
+      "name_hi": "राष्ट्रीय साइबर अपराध रिपोर्टिंग पोर्टल",
+      "type": "website",
+      "url": "https://cybercrime.gov.in",
+      "use_for_en": "Report cyber crimes, including financial fraud, online",
+      "use_for_hi": "वित्तीय धोखाधड़ी सहित साइबर अपराधों की ऑनलाइन रिपोर्ट करें",
+      "needs_verification": false
+    },
+    {
+      "id": "helpline_1930",
+      "name_en": "National Cyber Crime Helpline 1930",
+      "name_hi": "राष्ट्रीय साइबर अपराध हेल्पलाइन 1930",
+      "type": "phone",
+      "number": "1930",
+      "use_for_en": "Call quickly if money was lost through online or UPI fraud",
+      "use_for_hi": "यदि ऑनलाइन या यूपीआई धोखाधड़ी से पैसे कट गए हैं तो तुरंत कॉल करें",
+      "needs_verification": false
+    },
+    {
+      "id": "bank",
+      "name_en": "Your bank or payment app",
+      "name_hi": "आपका बैंक या भुगतान ऐप",
+      "type": "advice",
+      "use_for_en": "Use the support number printed on your card, passbook, or the official app. Do not use a number from the suspicious message.",
+      "use_for_hi": "अपने कार्ड, पासबुक या आधिकारिक ऐप पर दिए गए सहायता नंबर का उपयोग करें। संदिग्ध संदेश में दिए गए नंबर पर कॉल न करें।",
+      "needs_verification": false
+    },
+    {
+      "id": "local_cyber_cell",
+      "name_en": "Local police / state cyber cell",
+      "name_hi": "स्थानीय पुलिस / राज्य साइबर सेल",
+      "type": "advice",
+      "use_for_en": "You can also file a complaint at a police station or cyber cell.",
+      "use_for_hi": "आप पुलिस स्टेशन या साइबर सेल में भी शिकायत दर्ज करा सकते हैं।",
+      "needs_verification": false
+    },
+    {
+      "id": "sanchar_saathi",
+      "name_en": "Sanchar Saathi (Dept. of Telecommunications)",
+      "name_hi": "संचार साथी (दूरसंचार विभाग)",
+      "type": "website",
+      "url": "https://sancharsaathi.gov.in",
+      "use_for_en": "Official government telecom portal. Check what it offers.",
+      "use_for_hi": "आधिकारिक सरकारी दूरसंचार पोर्टल। देखें कि यह क्या सुविधाएं प्रदान करता है।",
+      "needs_verification": true
+    }
+  ]
+}

@@ -1,4 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
+import { motion } from 'motion/react';
 import {
   UploadCloud,
   Image as ImageIcon,
@@ -10,7 +11,9 @@ import {
   Send,
   Shield,
   FileCheck,
+  ArrowRight,
 } from 'lucide-react';
+import NeoButton from './NeoButton.jsx';
 
 const SYNTHETIC_IMAGE_SAMPLES = [
   {
@@ -45,7 +48,6 @@ const SYNTHETIC_IMAGE_SAMPLES = [
  */
 async function processImageFile(file, maxDimension = 1600, quality = 0.85) {
   return new Promise((resolve) => {
-    // If not an image, resolve with original
     if (!file.type.startsWith('image/')) {
       return resolve({ processedFile: file, originalSize: file.size, finalSize: file.size, downscaled: false });
     }
@@ -57,7 +59,6 @@ async function processImageFile(file, maxDimension = 1600, quality = 0.85) {
       URL.revokeObjectURL(objectUrl);
       const { width, height } = img;
 
-      // If dimensions are within bounds, keep original
       if (width <= maxDimension && height <= maxDimension) {
         return resolve({
           processedFile: file,
@@ -69,7 +70,6 @@ async function processImageFile(file, maxDimension = 1600, quality = 0.85) {
         });
       }
 
-      // Calculate scaled dimensions keeping aspect ratio
       let newWidth = width;
       let newHeight = height;
       if (width > height) {
@@ -90,7 +90,6 @@ async function processImageFile(file, maxDimension = 1600, quality = 0.85) {
       canvas.toBlob(
         (blob) => {
           if (!blob || blob.size >= file.size) {
-            // If downscaling somehow yielded a larger file, keep original
             return resolve({
               processedFile: file,
               originalSize: file.size,
@@ -142,15 +141,20 @@ export default function ScreenshotUploadZone({
   setContextNote,
   messageType,
   setMessageType,
+  claimedOrg = '',
+  setClaimedOrg,
+  outputLanguage = 'match',
+  setOutputLanguage,
+  userState = 'none',
+  setUserState,
 }) {
   const [dragActive, setDragActive] = useState(false);
-  const [fileMeta, setFileMeta] = useState(null); // { originalSize, finalSize, downscaled }
+  const [fileMeta, setFileMeta] = useState(null);
   const [previewUrl, setPreviewUrl] = useState(null);
   const [clientError, setClientError] = useState(null);
 
   const fileInputRef = useRef(null);
 
-  // Clean up object URLs on unmount
   useEffect(() => {
     return () => {
       if (previewUrl && previewUrl.startsWith('blob:')) {
@@ -159,7 +163,6 @@ export default function ScreenshotUploadZone({
     };
   }, [previewUrl]);
 
-  // Handle incoming file selection
   const handleFile = async (rawFile) => {
     setClientError(null);
     if (!rawFile) return;
@@ -175,7 +178,6 @@ export default function ScreenshotUploadZone({
       return;
     }
 
-    // Process & downscale if larger than 1600px
     const result = await processImageFile(rawFile, 1600, 0.85);
 
     if (previewUrl && previewUrl.startsWith('blob:')) {
@@ -231,7 +233,6 @@ export default function ScreenshotUploadZone({
     if (fileInputRef.current) fileInputRef.current.value = '';
   };
 
-  // Load synthetic sample screenshot
   const handleSelectSampleScreenshot = async (e) => {
     const sampleId = e.target.value;
     if (!sampleId) return;
@@ -242,11 +243,15 @@ export default function ScreenshotUploadZone({
         const res = await fetch(sample.url);
         const blob = await res.blob();
         const file = new File([blob], sample.filename, { type: 'image/png' });
-        setMessageType(sample.message_type);
-        setContextNote(sample.context_note);
         await handleFile(file);
+        if (sample.message_type && setMessageType) {
+          setMessageType(sample.message_type);
+        }
+        if (sample.context_note && setContextNote) {
+          setContextNote(sample.context_note);
+        }
       } catch {
-        setClientError('Unable to load synthetic sample screenshot.');
+        setClientError('Failed to load sample image file.');
       }
     }
     e.target.value = '';
@@ -255,29 +260,31 @@ export default function ScreenshotUploadZone({
   const handleSubmit = (e) => {
     e.preventDefault();
     if (!selectedFile || isLoading) return;
-    onAnalyze();
+    onAnalyze?.();
   };
 
   return (
     <form onSubmit={handleSubmit} className="flex flex-col gap-4">
-      {/* Sample Selector & Header */}
-      <div className="flex flex-wrap items-center justify-between gap-2">
-        <span className="text-xs font-semibold text-slate-300 uppercase tracking-wider">
-          Screenshot Upload
-        </span>
+      {/* Sample Selector Header */}
+      <div className="flex flex-wrap items-center justify-between gap-2.5 border-b-2 border-neutral-100 pb-3">
+        <div>
+          <h2 className="text-sm font-black uppercase tracking-wider text-neutral-900">
+            Screenshot Submission
+          </h2>
+          <span className="text-[10px] font-mono text-neutral-500 font-semibold">
+            Evaluate fake portals, smishing &amp; UI spoofing
+          </span>
+        </div>
 
         <div className="relative w-full sm:w-auto max-w-full sm:max-w-xs">
-          <label htmlFor="sample-screenshot-selector" className="sr-only">
-            Load sample screenshot
-          </label>
           <select
-            id="sample-screenshot-selector"
+            id="image-sample-selector"
             onChange={handleSelectSampleScreenshot}
             defaultValue=""
-            className="w-full text-xs bg-slate-900 border border-white/15 rounded-[6px] px-2.5 py-1.5 text-slate-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-400 cursor-pointer truncate"
+            className="w-full text-xs bg-[#faf8f3] border-2 border-black rounded-lg px-2.5 py-1.5 text-neutral-900 font-bold focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-black cursor-pointer truncate shadow-[2px_2px_0px_#000]"
           >
             <option value="" disabled>
-              Load sample screenshot (synthetic)...
+              Load sample image (synthetic)...
             </option>
             {SYNTHETIC_IMAGE_SAMPLES.map((s) => (
               <option key={s.id} value={s.id}>
@@ -288,7 +295,7 @@ export default function ScreenshotUploadZone({
         </div>
       </div>
 
-      {/* Upload Zone / Dropzone or File Preview Card */}
+      {/* Drag & Drop Zone */}
       {!selectedFile ? (
         <div
           onDragEnter={handleDrag}
@@ -296,21 +303,32 @@ export default function ScreenshotUploadZone({
           onDragLeave={handleDrag}
           onDrop={handleDrop}
           onClick={() => fileInputRef.current?.click()}
-          tabIndex={0}
+          className={`relative flex flex-col items-center justify-center p-6 sm:p-8 rounded-2xl border-2 border-dashed transition-all cursor-pointer text-center select-none ${
+            dragActive
+              ? 'border-black bg-[#8bfb34]/20 shadow-[4px_4px_0px_#000000]'
+              : 'border-black bg-[#faf8f3] hover:bg-[#8bfb34]/10 shadow-[3px_3px_0px_#000000]'
+          }`}
           role="button"
+          tabIndex={0}
           onKeyDown={(e) => {
             if (e.key === 'Enter' || e.key === ' ') {
               e.preventDefault();
               fileInputRef.current?.click();
             }
           }}
-          className={`border-2 border-dashed rounded-[10px] p-6 text-center cursor-pointer transition-colors flex flex-col items-center justify-center gap-2.5 ${
-            dragActive
-              ? 'border-teal-400 bg-teal-950/20'
-              : 'border-white/15 hover:border-teal-500/50 bg-slate-900/60'
-          } focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-400`}
-          aria-label="Upload screenshot dropzone. Click or drag and drop an image."
+          aria-label="Upload screenshot file dropzone"
         >
+          <div className="p-3 rounded-xl bg-white border-2 border-black shadow-[2px_2px_0px_#000000] mb-3">
+            <UploadCloud className="w-8 h-8 text-black" aria-hidden="true" />
+          </div>
+
+          <div className="text-sm font-black text-neutral-900">
+            Click to upload or drag &amp; drop
+          </div>
+          <p className="text-xs text-neutral-600 mt-1 font-semibold">
+            PNG, JPEG, or WebP (max 5 MB)
+          </p>
+
           <input
             ref={fileInputRef}
             type="file"
@@ -319,26 +337,13 @@ export default function ScreenshotUploadZone({
             className="sr-only"
             aria-hidden="true"
           />
-
-          <div className="p-3 rounded-full bg-slate-800 text-teal-400">
-            <UploadCloud className="w-6 h-6" aria-hidden="true" />
-          </div>
-
-          <div>
-            <div className="text-sm font-semibold text-slate-200">
-              Drag &amp; drop screenshot here, or <span className="text-teal-400 underline">browse</span>
-            </div>
-            <div className="text-[11px] text-slate-400 mt-1">
-              Supports PNG, JPEG, and WebP (Max 5 MB)
-            </div>
-          </div>
         </div>
       ) : (
-        /* Image Preview & Details Card */
-        <div className="rounded-[10px] border border-white/10 bg-slate-900/80 p-3.5 flex flex-col gap-3">
+        /* Preview Card */
+        <div className="flex flex-col gap-2 rounded-2xl border-2 border-black bg-white p-3.5 shadow-[4px_4px_0px_#000000]">
           <div className="flex items-center gap-3">
             {previewUrl && (
-              <div className="w-16 h-16 rounded-[6px] overflow-hidden bg-black/40 border border-white/10 flex-shrink-0 flex items-center justify-center">
+              <div className="w-16 h-16 rounded-xl border-2 border-black overflow-hidden flex-shrink-0 bg-neutral-100 shadow-[1px_1px_0px_#000]">
                 <img
                   src={previewUrl}
                   alt="Screenshot preview thumbnail"
@@ -348,47 +353,45 @@ export default function ScreenshotUploadZone({
             )}
 
             <div className="flex-1 min-w-0 text-xs">
-              <div className="font-semibold text-slate-200 truncate" title={fileMeta?.name}>
+              <div className="font-black text-neutral-900 truncate" title={fileMeta?.name}>
                 {fileMeta?.name}
               </div>
-              <div className="text-[11px] text-slate-400 mt-0.5">
+              <div className="text-xs text-neutral-600 font-medium mt-0.5">
                 Size: {formatBytes(fileMeta?.finalSize || selectedFile.size)}
                 {fileMeta?.downscaled && (
-                  <span className="ml-1.5 text-teal-300 font-mono">
-                    (downscaled from {formatBytes(fileMeta.originalSize)})
+                  <span className="ml-1.5 text-black font-bold font-mono">
+                    (downscaled)
                   </span>
                 )}
               </div>
               {fileMeta?.width && fileMeta?.height && (
-                <div className="text-[10px] font-mono text-slate-400">
+                <div className="text-[10px] font-mono font-bold text-neutral-500">
                   {fileMeta.width} &times; {fileMeta.height} px
                 </div>
               )}
             </div>
 
             {/* Remove / Replace Actions */}
-            <div className="flex items-center gap-1.5">
-              <button
-                type="button"
+            <div className="flex items-center gap-2">
+              <NeoButton
+                size="sm"
+                variant="secondary"
                 onClick={() => fileInputRef.current?.click()}
                 disabled={isLoading}
                 title="Replace image"
-                className="p-1.5 rounded-[6px] text-slate-400 hover:text-white hover:bg-slate-800 border border-white/10 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-400 cursor-pointer"
               >
                 <RefreshCw className="w-3.5 h-3.5" aria-hidden="true" />
-                <span className="sr-only">Replace screenshot</span>
-              </button>
+              </NeoButton>
 
-              <button
-                type="button"
+              <NeoButton
+                size="sm"
+                variant="danger"
                 onClick={handleRemove}
                 disabled={isLoading}
                 title="Remove image"
-                className="p-1.5 rounded-[6px] text-rose-400 hover:text-rose-300 hover:bg-rose-950/40 border border-rose-500/30 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-rose-400 cursor-pointer"
               >
                 <X className="w-3.5 h-3.5" aria-hidden="true" />
-                <span className="sr-only">Remove screenshot</span>
-              </button>
+              </NeoButton>
             </div>
           </div>
 
@@ -405,27 +408,43 @@ export default function ScreenshotUploadZone({
 
       {/* Client Validation Error */}
       {clientError && (
-        <div className="p-2.5 rounded-[8px] bg-rose-950/40 border border-rose-500/30 text-rose-200 text-xs flex items-center gap-2">
-          <AlertTriangle className="w-4 h-4 text-rose-400 flex-shrink-0" aria-hidden="true" />
+        <div className="p-3 rounded-xl bg-[#fee2e2] border-2 border-black text-[#991b1b] text-xs font-bold flex items-center gap-2 shadow-[2px_2px_0px_#000]">
+          <AlertTriangle className="w-4 h-4 text-[#ef4444] flex-shrink-0" aria-hidden="true" />
           <span>{clientError}</span>
         </div>
       )}
 
       {/* Privacy Notice Banner */}
-      <div className="p-3 rounded-[8px] bg-slate-900 border border-teal-500/20 text-[11px] text-slate-300 flex items-start gap-2.5 leading-relaxed">
-        <Shield className="w-4 h-4 text-teal-400 flex-shrink-0 mt-0.5" aria-hidden="true" />
+      <div className="p-3.5 rounded-xl bg-[#faf8f3] border-2 border-black text-xs text-neutral-800 flex items-start gap-2.5 leading-relaxed shadow-[2px_2px_0px_#000]">
+        <Shield className="w-4 h-4 text-black flex-shrink-0 mt-0.5" aria-hidden="true" />
         <p>
-          <strong className="text-slate-200">Privacy Notice:</strong> Your screenshot is sent to the analysis model in memory and is <em>never saved to disk</em> by LinkSleuth. Please crop or redact real names, account numbers, and personal info before uploading.
+          <strong className="text-black font-extrabold">Privacy Notice:</strong> Your screenshot is processed in memory and <em>never saved to disk</em>. Please crop or redact personal identification numbers before analyzing.
         </p>
       </div>
 
-      {/* Context Note Field (Optional, max 500 chars) */}
+      {/* Claimed Org Field */}
+      <div>
+        <label htmlFor="image-claimed-org-input" className="block text-xs font-black uppercase tracking-wider text-neutral-700 mb-1">
+          Who does this message claim to be from? <span className="text-neutral-400 font-normal lowercase">(optional)</span>
+        </label>
+        <input
+          type="text"
+          id="image-claimed-org-input"
+          maxLength={100}
+          value={claimedOrg}
+          onChange={(e) => setClaimedOrg?.(e.target.value)}
+          placeholder="e.g. State Bank of India, Amazon, WhatsApp"
+          className="w-full bg-white border-2 border-black rounded-xl px-3.5 py-2 text-xs font-medium text-neutral-900 placeholder:text-neutral-400 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-black shadow-[2px_2px_0px_#000]"
+        />
+      </div>
+
+      {/* Context Note Field */}
       <div>
         <div className="flex justify-between items-center mb-1">
-          <label htmlFor="context-note-input" className="text-xs font-medium text-slate-300">
-            Anything we should know? <span className="text-slate-400 font-normal">(Optional context)</span>
+          <label htmlFor="context-note-input" className="text-xs font-black uppercase tracking-wider text-neutral-700">
+            Context note: <span className="text-neutral-400 font-normal lowercase">(optional)</span>
           </label>
-          <span className="text-[11px] font-mono text-slate-400">
+          <span className="text-xs font-mono font-bold text-neutral-500">
             {contextNote.length} / 500
           </span>
         </div>
@@ -435,42 +454,97 @@ export default function ScreenshotUploadZone({
           maxLength={500}
           value={contextNote}
           onChange={(e) => setContextNote(e.target.value)}
-          placeholder="e.g. Received via text from an unknown number; claiming to be my credit union..."
-          className="w-full bg-slate-900/90 border border-white/15 rounded-[8px] p-2.5 text-xs text-[#fdfbf7] placeholder:text-slate-500 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-400 resize-y"
+          placeholder="e.g. Received via text from unknown sender claiming urgent account freeze..."
+          className="w-full bg-white border-2 border-black rounded-xl p-3 text-xs font-medium text-neutral-900 placeholder:text-neutral-400 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-black resize-y shadow-[2px_2px_0px_#000]"
         />
-        <p className="mt-1 text-[11px] text-slate-400 italic">
-          Context notes are treated as unverified user context, never as ground truth.
-        </p>
       </div>
 
+      {/* Explain in Language Selector */}
+      <div>
+        <label htmlFor="image-output-lang-select" className="block text-xs font-black uppercase tracking-wider text-neutral-700 mb-1">
+          Explain in:
+        </label>
+        <select
+          id="image-output-lang-select"
+          value={outputLanguage}
+          onChange={(e) => setOutputLanguage?.(e.target.value)}
+          className="w-full bg-white border-2 border-black rounded-xl px-3.5 py-2 text-xs font-bold text-neutral-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-black cursor-pointer shadow-[2px_2px_0px_#000]"
+        >
+          <option value="match">Match image content language</option>
+          <option value="en">English</option>
+          <option value="hi">हिन्दी (Hindi)</option>
+        </select>
+      </div>
+
+      {/* Optional "Have you already acted on this?" radio group */}
+      <fieldset className="p-3.5 rounded-xl bg-[#faf8f3] border-2 border-black shadow-[2px_2px_0px_#000]">
+        <legend className="text-xs font-black uppercase tracking-wider text-neutral-700 mb-1">
+          Have you already acted on this? <span className="text-neutral-400 font-normal lowercase">(optional)</span>
+        </legend>
+        <p className="text-[11px] text-neutral-500 font-medium mb-2">
+          Not sent to the AI. Only selects static emergency guidance if needed.
+        </p>
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs">
+          {[
+            { val: 'none', label: 'No' },
+            { val: 'clicked_link', label: 'I clicked a link' },
+            { val: 'shared_info', label: 'I shared details (OTP, password, card)' },
+            { val: 'paid_money', label: 'I sent money' },
+          ].map((item) => (
+            <label
+              key={item.val}
+              className={`flex items-center gap-2 p-2.5 rounded-xl border-2 border-black cursor-pointer transition-all select-none font-bold ${
+                userState === item.val
+                  ? 'bg-[#8bfb34] text-black shadow-[2px_2px_0px_#000]'
+                  : 'bg-white text-neutral-700 hover:bg-[#faf8f3]'
+              }`}
+            >
+              <input
+                type="radio"
+                name="image_user_state"
+                value={item.val}
+                checked={userState === item.val}
+                onChange={(e) => setUserState?.(e.target.value)}
+                className="sr-only"
+              />
+              <span className="text-xs">{item.label}</span>
+            </label>
+          ))}
+        </div>
+      </fieldset>
+
       {/* Action Buttons */}
-      <div className="flex items-center gap-3">
-        <button
+      <div className="flex items-center gap-3 pt-2">
+        <NeoButton
           type="submit"
+          variant="primary"
+          size="lg"
           disabled={isLoading || !selectedFile}
-          className="flex-1 flex items-center justify-center gap-2 bg-teal-600 hover:bg-teal-500 disabled:opacity-50 disabled:cursor-not-allowed text-white text-sm font-semibold py-2.5 px-4 rounded-[8px] shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-400 cursor-pointer"
+          className="flex-1"
         >
           {isLoading ? (
             <>
-              <Loader2 className="w-4 h-4 animate-spin" aria-hidden="true" />
-              <span>Analyzing Screenshot with Gemma 4... ({elapsedSeconds}s)</span>
+              <Loader2 className="w-4 h-4 animate-spin mr-2" aria-hidden="true" />
+              <span>Analyzing Screenshot... ({elapsedSeconds}s)</span>
             </>
           ) : (
             <>
-              <Send className="w-4 h-4" aria-hidden="true" />
+              <Send className="w-4 h-4 mr-2" aria-hidden="true" />
               <span>Analyze Screenshot</span>
+              <ArrowRight className="w-4 h-4 ml-1" aria-hidden="true" />
             </>
           )}
-        </button>
+        </NeoButton>
 
         {isLoading && (
-          <button
+          <NeoButton
             type="button"
+            variant="danger"
+            size="lg"
             onClick={onCancel}
-            className="px-3.5 py-2.5 rounded-[8px] border border-rose-500/40 bg-rose-950/40 text-rose-300 hover:bg-rose-900/40 text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-rose-500 cursor-pointer"
           >
             Cancel
-          </button>
+          </NeoButton>
         )}
       </div>
     </form>

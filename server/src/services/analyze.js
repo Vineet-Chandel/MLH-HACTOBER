@@ -43,17 +43,53 @@ export function stripFences(text) {
 
 /**
  * Normalizes text for whitespace and case insensitive comparison.
+ * Normalizes to NFC and strips zero-width joiners/non-joiners.
  * @param {string} str
  * @returns {string}
  */
 function normalizeForComparison(str) {
   if (!str) return '';
-  return str.toLowerCase().replace(/\s+/g, ' ').trim();
+  return str
+    .normalize('NFC')
+    .replace(/[\u200B-\u200D\uFEFF]/g, '')
+    .toLowerCase()
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+/**
+ * Builds an index map mapping normalized NFC, zero-width stripped character positions
+ * back to original character offsets (start, end) in the submitted text.
+ * @param {string} text
+ * @returns {{ normalizedStr: string, charMap: Array<{ origStart: number, origEnd: number }> }}
+ */
+export function buildNormalizedIndexMap(text) {
+  if (typeof text !== 'string' || !text) {
+    return { normalizedStr: '', charMap: [] };
+  }
+
+  const seg = new Intl.Segmenter(undefined, { granularity: 'grapheme' });
+  let normalizedStr = '';
+  const charMap = [];
+
+  for (const s of seg.segment(text)) {
+    const origStart = s.index;
+    const origEnd = s.index + s.segment.length;
+    // Normalize to NFC and strip zero-width characters (ZWNJ, ZWJ, ZWSP, BOM)
+    const norm = s.segment.normalize('NFC').replace(/[\u200B-\u200D\uFEFF]/g, '');
+    for (let i = 0; i < norm.length; i++) {
+      charMap.push({ origStart, origEnd });
+      normalizedStr += norm[i];
+    }
+  }
+
+  return { normalizedStr, charMap };
 }
 
 /**
  * Finds character offsets (start, end) of an evidence quote within the submitted text.
- * Handles case-insensitivity and whitespace normalization while returning exact slice offsets
+ * Handles Unicode NFC normalization, zero-width joiners/non-joiners stripping,
+ * case-insensitivity, and whitespace normalization while returning exact slice offsets
  * in the original submitted text. Returns the first occurrence if repeated.
  *
  * @param {string} submittedText
@@ -80,7 +116,10 @@ export function findEvidenceMatch(submittedText, evidenceQuote) {
     };
   }
 
-  // Check 2: Case-insensitive and whitespace-normalized regex matching
+  // Check 2: Unicode NFC & zero-width stripped index-mapped matching
+  const normMap = buildNormalizedIndexMap(submittedText);
+  if (!normMap.normalizedStr) return { found: false };
+
   // Prepare candidates: direct quote, and quote with surrounding quotation marks stripped
   const rawTrimmed = evidenceQuote.trim();
   const strippedQuotes = rawTrimmed.replace(/^["'“”‘’]+|["'“”‘’]+$/g, '').trim();
@@ -90,22 +129,39 @@ export function findEvidenceMatch(submittedText, evidenceQuote) {
   }
 
   for (const candidate of candidates) {
-    const tokens = candidate.split(/\s+/).filter(Boolean);
+    const normCandidate = candidate
+      .normalize('NFC')
+      .replace(/[\u200B-\u200D\uFEFF]/g, '');
+    if (!normCandidate) continue;
+
+    // Direct substring check in normalized text
+    const directIdx = normMap.normalizedStr.indexOf(normCandidate);
+    if (directIdx !== -1) {
+      const origStart = normMap.charMap[directIdx].origStart;
+      const origEnd = normMap.charMap[directIdx + normCandidate.length - 1].origEnd;
+      return { found: true, start: origStart, end: origEnd };
+    }
+
+    // Tokenized regex matching with whitespace and case insensitivity
+    const tokens = normCandidate.split(/\s+/).filter(Boolean);
     if (tokens.length === 0) continue;
 
-    // Escape regex characters in each token and join with \s+ to match any whitespace sequence in original
     const pattern = tokens
       .map((tok) => tok.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'))
       .join('\\s+');
 
     try {
       const regex = new RegExp(pattern, 'i');
-      const match = submittedText.match(regex);
+      const match = normMap.normalizedStr.match(regex);
       if (match && typeof match.index === 'number') {
+        const normStart = match.index;
+        const normEnd = match.index + match[0].length;
+        const origStart = normMap.charMap[normStart].origStart;
+        const origEnd = normMap.charMap[normEnd - 1].origEnd;
         return {
           found: true,
-          start: match.index,
-          end: match.index + match[0].length,
+          start: origStart,
+          end: origEnd,
         };
       }
     } catch {
@@ -373,18 +429,24 @@ function parseAndValidate(rawOutput) {
  * @param {string} input.message
  * @param {string} input.message_type
  * @param {string} [input.url]
+ * @param {string} [input.output_language]
  * @param {Function} [customCallFn] Optional mockable call function for deterministic unit testing.
  * @returns {Promise<{ analysis: Object, meta: Object }>}
  */
 export async function analyzeMessage(
-  { message, message_type, url },
+  { message, message_type, url, output_language = 'match' },
   customCallFn = null
 ) {
   const startTime = Date.now();
   const modelName = getGemmaModel();
 
   const callModel = customCallFn || callGemmaWithTimeout;
-  const initialPrompt = buildAnalysisPrompt({ message, message_type, url });
+  const initialPrompt = buildAnalysisPrompt({
+    message,
+    message_type,
+    url,
+    output_language,
+  });
 
   // 1. Initial Model Call
   const rawOutput = await callModel(initialPrompt, DEFENSIVE_SYSTEM_INSTRUCTION);
@@ -607,18 +669,19 @@ async function callGemmaMultimodalWithTimeout(contents, systemInstruction) {
  * @param {string} input.mimeType
  * @param {string} [input.message_type]
  * @param {string} [input.context_note]
+ * @param {string} [input.output_language]
  * @param {Function} [customCallFn] Optional mockable call function for testing.
  * @returns {Promise<{ analysis: Object, meta: Object }>}
  */
 export async function analyzeImage(
-  { imageBuffer, mimeType, message_type = 'other', context_note = '' },
+  { imageBuffer, mimeType, message_type = 'other', context_note = '', output_language = 'match' },
   customCallFn = null
 ) {
   const startTime = Date.now();
   const modelName = getGemmaModel();
 
   const callModel = customCallFn || callGemmaMultimodalWithTimeout;
-  const initialPrompt = buildImageAnalysisPrompt({ message_type, context_note });
+  const initialPrompt = buildImageAnalysisPrompt({ message_type, context_note, output_language });
 
   const initialContents = [
     {

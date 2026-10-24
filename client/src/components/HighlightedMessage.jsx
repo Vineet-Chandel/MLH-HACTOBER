@@ -1,5 +1,6 @@
 import React, { useMemo } from 'react';
-import { Eye, ShieldAlert, CheckCircle2 } from 'lucide-react';
+import { motion } from 'motion/react';
+import { Eye, ShieldAlert, CheckCircle2, FileText } from 'lucide-react';
 
 /**
  * Computes segmented text ranges for rendering highlights with overlapping interval support.
@@ -25,7 +26,7 @@ function buildSegments(text, indicators) {
           start,
           end,
           originalIndex,
-          displayNumber: originalIndex + 1,
+          displayNumber: ind.displayNumber || originalIndex + 1,
           severity: ind.severity,
           category: ind.category,
         });
@@ -59,7 +60,6 @@ function buildSegments(text, indicators) {
         indicators: [],
       });
     } else {
-      // Determine composite severity (high > medium > low)
       let severity = 'low';
       if (covering.some((c) => c.severity === 'high')) {
         severity = 'high';
@@ -103,30 +103,38 @@ export default function HighlightedMessage({
   };
 
   return (
-    <div className="flex flex-col gap-2.5">
+    <div className="flex flex-col gap-3">
       {/* Header bar above reading surface */}
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between border-b-2 border-neutral-200 pb-2.5">
         <div className="flex items-center gap-2">
-          <Eye className="w-4 h-4 text-teal-400" aria-hidden="true" />
-          <h3 className="text-xs font-semibold text-slate-300 uppercase tracking-wider">
-            Submitted Content Inspection
-          </h3>
+          <div className="p-1.5 rounded-lg bg-[#8bfb34] border-2 border-black shadow-[2px_2px_0px_#000000]">
+            <FileText className="w-4 h-4 text-black" aria-hidden="true" />
+          </div>
+          <div>
+            <h3 className="text-xs font-black uppercase tracking-wider text-neutral-900">
+              Content Inspection Surface
+            </h3>
+            <span className="text-[10px] font-mono text-neutral-500">
+              Grounded Evidence Verification
+            </span>
+          </div>
         </div>
-        <div className="text-[11px] text-slate-400">
+
+        <div className="text-xs">
           {verifiedCount > 0 ? (
-            <span className="flex items-center gap-1 text-teal-300 font-medium">
+            <span className="inline-flex items-center gap-1.5 font-mono text-[11px] font-bold px-2 py-0.5 rounded-md bg-[#8bfb34] text-black border-2 border-black shadow-[2px_2px_0px_#000000]">
               <CheckCircle2 className="w-3.5 h-3.5" aria-hidden="true" />
-              <span>{verifiedCount} quote span{verifiedCount === 1 ? '' : 's'} highlighted</span>
+              <span>{verifiedCount} quote span{verifiedCount === 1 ? '' : 's'}</span>
             </span>
           ) : (
-            <span className="text-slate-400">No matching text quotes identified</span>
+            <span className="text-neutral-500 text-xs italic">No matching text quotes</span>
           )}
         </div>
       </div>
 
-      {/* Reading Surface: Warm off-white, high-contrast document viewer */}
+      {/* Reading Surface: Pure white, crisp black 2px border, hard drop shadow */}
       <div
-        className="rounded-[10px] border border-slate-300/80 bg-[#fdfbf7] text-[#0f172a] p-4 sm:p-5 shadow-sm font-sans text-sm sm:text-base leading-relaxed break-words break-all [overflow-wrap:anywhere] whitespace-pre-wrap selection:bg-teal-200"
+        className="rounded-xl border-2 border-black bg-white text-neutral-900 p-4 sm:p-5 shadow-[4px_4px_0px_#000000] font-sans text-sm sm:text-base leading-relaxed break-words break-all [overflow-wrap:anywhere] whitespace-pre-wrap selection:bg-[#8bfb34]/40"
         aria-label="Submitted message text with highlighted indicators"
         tabIndex={0}
       >
@@ -137,20 +145,19 @@ export default function HighlightedMessage({
             return <span key={idx}>{sliceText}</span>;
           }
 
-          // Highlight segment
           const isCurrentActive = seg.indicators.some(
             (ind) => ind.originalIndex === activeIndicatorIndex
           );
 
-          let bgClasses = 'bg-[#ccfbf1] text-[#115e59] border-b-2 border-[#14b8a6]';
-          let badgeBg = 'bg-[#115e59] text-white';
+          let bgClasses = 'bg-[#dcfce7] text-[#166534] border-b-2 border-[#15803d]';
+          let badgeBg = 'bg-[#15803d] text-white';
 
           if (seg.severity === 'high') {
-            bgClasses = 'bg-[#fee2e2] text-[#991b1b] border-b-2 border-[#f43f5e]';
-            badgeBg = 'bg-[#991b1b] text-white';
+            bgClasses = 'bg-[#fee2e2] text-[#991b1b] border-b-2 border-[#b91c1c]';
+            badgeBg = 'bg-[#b91c1c] text-white';
           } else if (seg.severity === 'medium') {
-            bgClasses = 'bg-[#fef3c7] text-[#92400e] border-b-2 border-[#f59e0b]';
-            badgeBg = 'bg-[#92400e] text-white';
+            bgClasses = 'bg-[#fef3c7] text-[#92400e] border-b-2 border-[#b45309]';
+            badgeBg = 'bg-[#b45309] text-white';
           }
 
           const primaryTargetIndex = seg.indicators[0].originalIndex;
@@ -167,15 +174,15 @@ export default function HighlightedMessage({
               aria-label={`Evidence quote for indicator ${indicatorTags}: ${seg.severity} severity. Click to focus card.`}
               onClick={() => onSelectIndicator(primaryTargetIndex)}
               onKeyDown={(e) => handleSegmentKeyDown(e, primaryTargetIndex)}
-              className={`inline rounded px-1 py-0.5 mx-0.5 cursor-pointer transition-all duration-150 ${bgClasses} ${
+              className={`inline rounded px-1.5 py-0.5 mx-0.5 cursor-pointer transition-all duration-150 ${bgClasses} ${
                 isCurrentActive
-                  ? 'ring-2 ring-teal-600 ring-offset-1 ring-offset-[#fdfbf7] font-semibold'
+                  ? 'ring-2 ring-black ring-offset-1 font-bold shadow-[2px_2px_0px_#000000]'
                   : 'hover:opacity-90'
-              } focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-600`}
+              } focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-black`}
             >
               <span>{sliceText}</span>
               <sup
-                className={`ml-1 inline-flex items-center px-1 py-0.2 rounded text-[10px] font-mono font-bold tracking-tight select-none ${badgeBg}`}
+                className={`ml-1 inline-flex items-center px-1.5 py-0.2 rounded text-[10px] font-mono font-black tracking-tight select-none border border-black/40 ${badgeBg}`}
                 aria-hidden="true"
               >
                 {indicatorTags}
@@ -185,8 +192,8 @@ export default function HighlightedMessage({
         })}
       </div>
 
-      <p className="text-[11px] text-slate-400 italic">
-        Tip: Click or focus any highlighted span to jump directly to its evidence analysis card.
+      <p className="text-[11px] font-medium text-neutral-500 italic">
+        Tip: Click any highlighted span to jump directly to its evidence analysis card.
       </p>
     </div>
   );
