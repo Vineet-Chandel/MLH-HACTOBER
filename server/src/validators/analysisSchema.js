@@ -13,12 +13,20 @@ export const IndicatorCategoryEnum = z.enum([
 
 export const IndicatorSeverityEnum = z.enum(['low', 'medium', 'high']);
 
+export const EvidenceMatchSchema = z.object({
+  found: z.boolean(),
+  start: z.number().int().nonnegative().optional(),
+  end: z.number().int().nonnegative().optional(),
+});
+
 export const IndicatorSchema = z.object({
   category: IndicatorCategoryEnum,
   evidence: z.string().min(1).max(1000),
   explanation: z.string().min(1).max(1000),
   severity: IndicatorSeverityEnum,
   uncertainty: z.string().max(1000).default(''),
+  evidence_match: EvidenceMatchSchema.optional(),
+  unverified: z.boolean().optional(),
 });
 
 export const RiskLevelEnum = z.enum([

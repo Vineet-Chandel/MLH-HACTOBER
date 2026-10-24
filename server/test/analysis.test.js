@@ -6,6 +6,7 @@ import {
 } from '../src/validators/analysisSchema.js';
 import {
   stripFences,
+  findEvidenceMatch,
   verifyEvidence,
   mapToAnalysisError,
   analyzeMessage,
@@ -146,9 +147,92 @@ test('4. Evidence verification unit tests', () => {
 
   assert.equal(verifiedIndicators.length, 3);
   assert.equal(verifiedIndicators[0].unverified, false);
+  assert.equal(verifiedIndicators[0].evidence_match.found, true);
+  assert.equal(verifiedIndicators[0].evidence_match.start, 5);
+  assert.equal(verifiedIndicators[0].evidence_match.end, 27);
+  assert.equal(
+    submittedText.slice(
+      verifiedIndicators[0].evidence_match.start,
+      verifiedIndicators[0].evidence_match.end
+    ),
+    'bank account is locked'
+  );
+
   assert.equal(verifiedIndicators[1].unverified, false);
+  assert.equal(verifiedIndicators[1].evidence_match.found, false);
+
   assert.equal(verifiedIndicators[2].unverified, true);
+  assert.equal(verifiedIndicators[2].evidence_match.found, false);
   assert.equal(unverifiedCount, 1);
+});
+
+test('4b. Character offset evidence matching unit tests', () => {
+  const text =
+    'URGENT: Your First National Bank account has been suspended due to suspicious activity. Please verify your account immediately at https://example.com/login. Action required immediately.';
+
+  // 1. Exact match
+  const exact = findEvidenceMatch(text, 'First National Bank');
+  assert.equal(exact.found, true);
+  assert.equal(exact.start, 13);
+  assert.equal(exact.end, 32);
+  assert.equal(text.slice(exact.start, exact.end), 'First National Bank');
+
+  // 2. Case difference
+  const caseDiff = findEvidenceMatch(text, 'urgent: your first national bank');
+  assert.equal(caseDiff.found, true);
+  assert.equal(caseDiff.start, 0);
+  assert.equal(caseDiff.end, 32);
+  assert.equal(
+    text.slice(caseDiff.start, caseDiff.end),
+    'URGENT: Your First National Bank'
+  );
+
+  // 3. Extra whitespace (in quote or in text)
+  const whitespaceText = 'Please    verify \n  your account    immediately';
+  const whitespaceMatch = findEvidenceMatch(
+    whitespaceText,
+    'Please verify your account immediately'
+  );
+  assert.equal(whitespaceMatch.found, true);
+  assert.equal(whitespaceMatch.start, 0);
+  assert.equal(whitespaceMatch.end, whitespaceText.length);
+  assert.equal(
+    whitespaceText.slice(whitespaceMatch.start, whitespaceMatch.end),
+    whitespaceText
+  );
+
+  // Also extra whitespace in quote matching normal text
+  const whitespaceQuoteMatch = findEvidenceMatch(
+    text,
+    'suspicious   activity'
+  );
+  assert.equal(whitespaceQuoteMatch.found, true);
+  assert.equal(text.slice(whitespaceQuoteMatch.start, whitespaceQuoteMatch.end), 'suspicious activity');
+
+  // 4. No match
+  const noMatch = findEvidenceMatch(text, 'completely fabricated cryptographic proof');
+  assert.equal(noMatch.found, false);
+
+  // 5. Repeated phrase (must return the first occurrence)
+  // "immediately" appears twice: first after "your account", second in "Action required immediately."
+  const repeated = findEvidenceMatch(text, 'immediately');
+  assert.equal(repeated.found, true);
+  const firstImmediateIdx = text.indexOf('immediately');
+  assert.equal(repeated.start, firstImmediateIdx);
+  assert.equal(repeated.end, firstImmediateIdx + 'immediately'.length);
+
+  // 6. Overlapping quotes
+  // Quote A: "First National Bank account"
+  // Quote B: "Bank account has been suspended"
+  const overlapA = findEvidenceMatch(text, 'First National Bank account');
+  const overlapB = findEvidenceMatch(text, 'Bank account has been suspended');
+  assert.equal(overlapA.found, true);
+  assert.equal(overlapB.found, true);
+  assert.equal(text.slice(overlapA.start, overlapA.end), 'First National Bank account');
+  assert.equal(text.slice(overlapB.start, overlapB.end), 'Bank account has been suspended');
+  // Confirm they overlap in character range
+  assert(overlapA.start < overlapB.start);
+  assert(overlapA.end > overlapB.start);
 });
 
 test('5. Repair-path logic with mocked model', async () => {

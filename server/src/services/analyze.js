@@ -47,7 +47,73 @@ function normalizeForComparison(str) {
 }
 
 /**
+ * Finds character offsets (start, end) of an evidence quote within the submitted text.
+ * Handles case-insensitivity and whitespace normalization while returning exact slice offsets
+ * in the original submitted text. Returns the first occurrence if repeated.
+ *
+ * @param {string} submittedText
+ * @param {string} evidenceQuote
+ * @returns {{ found: true, start: number, end: number } | { found: false }}
+ */
+export function findEvidenceMatch(submittedText, evidenceQuote) {
+  if (
+    typeof submittedText !== 'string' ||
+    typeof evidenceQuote !== 'string' ||
+    !submittedText.trim() ||
+    !evidenceQuote.trim()
+  ) {
+    return { found: false };
+  }
+
+  // Check 1: Exact match first (fast path)
+  const exactIdx = submittedText.indexOf(evidenceQuote);
+  if (exactIdx !== -1) {
+    return {
+      found: true,
+      start: exactIdx,
+      end: exactIdx + evidenceQuote.length,
+    };
+  }
+
+  // Check 2: Case-insensitive and whitespace-normalized regex matching
+  // Prepare candidates: direct quote, and quote with surrounding quotation marks stripped
+  const rawTrimmed = evidenceQuote.trim();
+  const strippedQuotes = rawTrimmed.replace(/^["'“”‘’]+|["'“”‘’]+$/g, '').trim();
+  const candidates = [rawTrimmed];
+  if (strippedQuotes && strippedQuotes !== rawTrimmed) {
+    candidates.push(strippedQuotes);
+  }
+
+  for (const candidate of candidates) {
+    const tokens = candidate.split(/\s+/).filter(Boolean);
+    if (tokens.length === 0) continue;
+
+    // Escape regex characters in each token and join with \s+ to match any whitespace sequence in original
+    const pattern = tokens
+      .map((tok) => tok.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'))
+      .join('\\s+');
+
+    try {
+      const regex = new RegExp(pattern, 'i');
+      const match = submittedText.match(regex);
+      if (match && typeof match.index === 'number') {
+        return {
+          found: true,
+          start: match.index,
+          end: match.index + match[0].length,
+        };
+      }
+    } catch {
+      // Fallback if regex construction fails
+    }
+  }
+
+  return { found: false };
+}
+
+/**
  * Verifies that indicator evidence quotes actually appear in the submitted content.
+ * Adds evidence_match with character offsets for quotes found in submittedText.
  * Flags unverified quotes on the indicator and tallies the total unverified count.
  *
  * @param {Array<Object>} indicators
@@ -67,21 +133,32 @@ export function verifyEvidence(indicators, submittedText, submittedUrl = '') {
   let unverifiedCount = 0;
 
   const verifiedIndicators = indicators.map((ind) => {
-    const normalizedEvidence = normalizeForComparison(ind.evidence);
-    const appearsInSource =
-      normalizedEvidence.length > 0 &&
-      normalizedSource.includes(normalizedEvidence);
+    // 1. Calculate character offsets into original submitted text
+    const evidenceMatch = findEvidenceMatch(submittedText, ind.evidence);
+
+    // 2. Determine whether the evidence is verified in text or url
+    let appearsInSource = false;
+    if (evidenceMatch.found) {
+      appearsInSource = true;
+    } else {
+      const normalizedEvidence = normalizeForComparison(ind.evidence);
+      appearsInSource =
+        normalizedEvidence.length > 0 &&
+        normalizedSource.includes(normalizedEvidence);
+    }
 
     if (!appearsInSource) {
       unverifiedCount++;
       return {
         ...ind,
+        evidence_match: evidenceMatch,
         unverified: true,
       };
     }
 
     return {
       ...ind,
+      evidence_match: evidenceMatch,
       unverified: false,
     };
   });
