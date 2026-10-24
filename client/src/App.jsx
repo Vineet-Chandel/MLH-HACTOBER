@@ -16,8 +16,11 @@ import {
   Eye,
   ArrowRight,
   Sparkles,
-  Wifi,
-  WifiOff,
+  Rows3,
+  Columns2,
+  Lock,
+  Languages,
+  FlaskConical,
 } from 'lucide-react';
 
 import RiskBanner from './components/RiskBanner.jsx';
@@ -36,6 +39,9 @@ import PatternChip from './components/PatternChip.jsx';
 import PatternTipBlock from './components/PatternTipBlock.jsx';
 import NeoButton from './components/NeoButton.jsx';
 import AnimatedLogo from './components/AnimatedLogo.jsx';
+import GenerationScreenLockModal from './components/GenerationScreenLockModal.jsx';
+import NeoSelect from './components/NeoSelect.jsx';
+import NeoDropdownModal from './components/NeoDropdownModal.jsx';
 
 import indiaSamplesData from './data/india-samples.json' with { type: 'json' };
 
@@ -83,10 +89,14 @@ export default function App() {
   // Backend connectivity state
   const [backendHealth, setBackendHealth] = useState('checking'); // 'checking' | 'connected' | 'offline'
 
+  // Workspace layout mode: 'stacked' (Form above Findings) | 'side-by-side'
+  const [layoutMode, setLayoutMode] = useState('stacked');
+
   // Investigation Mode Switch: 'text' | 'screenshot'
   const [investigationMode, setInvestigationMode] = useState('text');
 
   // Text Form input state
+  const [selectedScenario, setSelectedScenario] = useState(null);
   const [message, setMessage] = useState('');
   const [messageType, setMessageType] = useState('email');
   const [url, setUrl] = useState('');
@@ -190,17 +200,31 @@ export default function App() {
   }, [analysisResult]);
 
   // Handle loading a synthetic text sample
-  const handleSelectTextSample = (e) => {
-    const selectedId = e.target.value;
-    if (!selectedId) return;
-    const sample = ALL_SYNTHETIC_SAMPLES.find((s) => s.id === selectedId);
-    if (sample) {
-      setMessage(sample.message);
-      setMessageType(sample.message_type);
-      setUrl(sample.url);
-      setErrorState(null);
+  const handleSelectTextSample = (sampleOrEvent, autoAnalyze = true) => {
+    const sample = sampleOrEvent?.id
+      ? sampleOrEvent
+      : ALL_SYNTHETIC_SAMPLES.find((s) => s.id === sampleOrEvent?.target?.value);
+    if (!sample) return;
+
+    setSelectedScenario(sample);
+    setMessage(sample.message);
+    setMessageType(sample.message_type);
+    setUrl(sample.url || '');
+    setErrorState(null);
+
+    // Automatically trigger analysis so scenario findings immediately render over the page!
+    if (autoAnalyze) {
+      executeTextAnalysis(sample.message, sample.message_type, sample.url || '');
     }
-    e.target.value = '';
+  };
+
+  const handleClearScenario = () => {
+    setSelectedScenario(null);
+    setMessage('');
+    setUrl('');
+    setMessageType('email');
+    setErrorState(null);
+    setAnalysisResult(null);
   };
 
   // Submit Text analysis request
@@ -274,8 +298,8 @@ export default function App() {
       setUrlChecks(data.url_checks || null);
       setStaticGuidance(data.static_guidance || null);
 
-      if (window.innerWidth < 1024 && resultsTopRef.current) {
-        resultsTopRef.current.scrollIntoView({ behavior: 'smooth' });
+      if (resultsTopRef.current) {
+        resultsTopRef.current.scrollIntoView({ behavior: 'smooth', block: 'start' });
       }
     } catch (err) {
       if (err.name === 'AbortError') {
@@ -375,8 +399,8 @@ export default function App() {
       setStaticGuidance(data.static_guidance || null);
       setImageResultTab('model_read');
 
-      if (window.innerWidth < 1024 && resultsTopRef.current) {
-        resultsTopRef.current.scrollIntoView({ behavior: 'smooth' });
+      if (resultsTopRef.current) {
+        resultsTopRef.current.scrollIntoView({ behavior: 'smooth', block: 'start' });
       }
     } catch (err) {
       if (err.name === 'AbortError') {
@@ -408,6 +432,7 @@ export default function App() {
   };
 
   const handleReset = () => {
+    setSelectedScenario(null);
     setMessage('');
     setUrl('');
     setMessageType('email');
@@ -449,14 +474,690 @@ export default function App() {
 
   const isImageAnalysis = meta?.input_type === 'image';
 
+  // -------------------------------------------------------------
+  // Content Sections
+  // -------------------------------------------------------------
+
+  // 1. Investigation Findings Section (Rendered BELOW the form in stacked mode)
+  const renderFindingsSection = () => (
+    <div ref={resultsTopRef} className="flex flex-col gap-6">
+      {/* Section Heading & Copy Report Button */}
+      <div className="flex flex-wrap items-center justify-between gap-3 border-b-2 border-black pb-3.5">
+        <div className="flex items-center gap-2.5">
+          <div className="p-2 rounded-xl bg-black text-white border-2 border-black shadow-[2px_2px_0px_#000000]">
+            <Layers className="w-4 h-4 stroke-[2.5]" aria-hidden="true" />
+          </div>
+          <div>
+            <h2 className="text-sm font-black uppercase tracking-wider text-neutral-900">
+              Investigation Findings
+            </h2>
+            <span className="text-[10px] font-mono font-bold text-neutral-500">
+              Defensive AI &amp; Grounded Evidence Analysis
+            </span>
+          </div>
+        </div>
+
+        {analysisResult && (
+          <CopyReportButton
+            analysis={analysisResult}
+            meta={meta}
+            submittedMessage={submittedSnapshot.message}
+            submittedUrl={submittedSnapshot.url}
+            urlChecks={urlChecks}
+            staticGuidance={staticGuidance}
+          />
+        )}
+      </div>
+
+      {/* State 1: Error Alert Card */}
+      {!isLoading && errorState && (
+        <motion.section
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="rounded-2xl border-2 border-black bg-[#fee2e2] p-6 text-[#991b1b] flex flex-col gap-4 shadow-[6px_6px_0px_#000000]"
+          role="alert"
+          aria-live="assertive"
+        >
+          <div className="flex items-start gap-3.5">
+            <AlertCircle className="w-6 h-6 text-[#ef4444] flex-shrink-0 mt-0.5" aria-hidden="true" />
+            <div className="flex-1">
+              <h3 className="text-sm font-black text-[#991b1b] uppercase tracking-wide">
+                Analysis Error: {errorState.code}
+              </h3>
+              <p className="text-xs text-neutral-900 mt-1.5 leading-relaxed font-semibold">
+                {errorState.message}
+              </p>
+            </div>
+          </div>
+
+          {errorState.code !== 'CANCELLED' && (
+            <div className="pt-2 border-t-2 border-red-200 flex justify-end">
+              <NeoButton
+                size="sm"
+                variant="danger"
+                onClick={() => {
+                  if (investigationMode === 'screenshot') {
+                    executeScreenshotAnalysis();
+                  } else {
+                    executeTextAnalysis(message, messageType, url);
+                  }
+                }}
+              >
+                <RotateCcw className="w-3.5 h-3.5 mr-1" aria-hidden="true" />
+                <span>Retry Analysis</span>
+              </NeoButton>
+            </div>
+          )}
+        </motion.section>
+      )}
+
+      {/* State 2: Empty State (Awaiting Content Submission) */}
+      {!isLoading && !errorState && !analysisResult && (
+        <motion.section
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          className="rounded-2xl border-2 border-black bg-white p-8 sm:p-14 flex flex-col items-center justify-center text-center text-neutral-600 min-h-[340px] shadow-[6px_6px_0px_#000000]"
+        >
+          <div className="p-4 rounded-2xl bg-[#faf8f3] border-2 border-black mb-4 shadow-[4px_4px_0px_#000000]">
+            <ShieldAlert className="w-10 h-10 text-neutral-800" aria-hidden="true" />
+          </div>
+          <h3 className="text-base font-black text-neutral-900">
+            Awaiting Content Submission
+          </h3>
+          <p className="text-xs text-neutral-600 mt-1.5 max-w-md leading-relaxed font-semibold">
+            {investigationMode === 'screenshot'
+              ? `Upload an image or select a sample ${layoutMode === 'stacked' ? 'in the form above' : 'on the left'} to evaluate for fake login prompts, urgent alerts, and deceptive cues.`
+              : `Paste an untrusted text message or load a sample ${layoutMode === 'stacked' ? 'in the form above' : 'on the left'} to extract indicators, verify grounded evidence, and inspect links.`}
+          </p>
+        </motion.section>
+      )}
+
+      {/* State 3: Active Results Display */}
+      {!isLoading && !errorState && analysisResult && (
+        <div className="flex flex-col gap-6">
+          {/* 1. Risk Level Banner with Summary, Model, Latency */}
+          <RiskBanner
+            riskLevel={analysisResult.risk_level}
+            summary={analysisResult.summary}
+            model={meta?.model}
+            latencyMs={meta?.latency_ms}
+          />
+
+          {/* 2. Heuristic Indicator Meter */}
+          <HeuristicMeter
+            score={analysisResult.heuristic_score}
+            riskLevel={analysisResult.risk_level}
+          />
+
+          {/* 2b. AI-suggested Scam Pattern Chip */}
+          <PatternChip
+            scamPattern={analysisResult.scam_pattern}
+            patternRationale={analysisResult.pattern_rationale}
+            detectedLanguage={analysisResult.detected_language}
+            displayLanguage={
+              outputLanguage === 'hi' ||
+              (outputLanguage === 'match' && analysisResult.detected_language === 'hi')
+                ? 'hi'
+                : 'en'
+            }
+          />
+
+          {/* 2c. Static Pattern Guidance Tip ("Good to know") */}
+          {staticGuidance?.pattern_tip && (
+            <PatternTipBlock
+              patternTip={staticGuidance.pattern_tip}
+              displayLanguage={
+                outputLanguage === 'hi' ||
+                (outputLanguage === 'match' && analysisResult.detected_language === 'hi')
+                  ? 'hi'
+                  : 'en'
+              }
+            />
+          )}
+
+          {/* 2d. Static "Where to report" Panel */}
+          <WhereToReportPanel
+            staticGuidance={staticGuidance}
+            userState={userState}
+            isHindi={
+              outputLanguage === 'hi' ||
+              (outputLanguage === 'match' && analysisResult.detected_language === 'hi')
+            }
+          />
+
+          {/* 2e. Deterministic Rule-Based URL Inspection Panel */}
+          <UrlChecksPanel urlChecks={urlChecks} />
+
+          {/* 3. Evidence Cards List */}
+          <section
+            className="flex flex-col gap-3.5"
+            aria-labelledby="indicators-heading"
+          >
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <h3
+                  id="indicators-heading"
+                  className="text-xs font-black text-neutral-900 uppercase tracking-wider"
+                >
+                  Identified Indicators ({sortedIndicators.length})
+                </h3>
+                <span className="px-2 py-0.5 rounded-md text-[10px] font-mono font-bold uppercase bg-[#faf8f3] text-black border border-black shadow-[1px_1px_0px_#000]">
+                  AI-generated
+                </span>
+              </div>
+              {meta?.unverified_evidence_count > 0 && (
+                <span className="text-[11px] text-amber-900 font-bold bg-amber-100 px-2.5 py-0.5 rounded-md border border-amber-400">
+                  ⚠️ {meta.unverified_evidence_count} unverified quote(s)
+                </span>
+              )}
+            </div>
+
+            {sortedIndicators.length === 0 ? (
+              <p className="text-xs text-neutral-600 italic bg-white p-4 rounded-xl border-2 border-black shadow-[3px_3px_0px_#000]">
+                No deceptive or malicious indicators detected in the submission.
+              </p>
+            ) : (
+              <div className="flex flex-col gap-3.5">
+                {sortedIndicators.map((ind) => (
+                  <EvidenceCard
+                    key={ind._originalIdx}
+                    indicator={ind}
+                    index={ind._originalIdx}
+                    displayNumber={ind.displayNumber}
+                    isActive={activeIndicatorIndex === ind._originalIdx}
+                    onFocusCard={setActiveIndicatorIndex}
+                    onJumpToHighlight={handleJumpToHighlightFromCard}
+                    inputType={isImageAnalysis ? 'image' : 'text'}
+                  />
+                ))}
+              </div>
+            )}
+          </section>
+
+          {/* 4. Signals Panel */}
+          <SignalsPanel signals={analysisResult.positive_or_neutral_signals} />
+
+          {/* 5. Actions Panel */}
+          <ActionsPanel recommendedActions={analysisResult.recommended_actions} />
+
+          {/* 6. Limitations Panel (Permanently Visible) */}
+          <LimitationsPanel limitations={analysisResult.limitations} />
+        </div>
+      )}
+    </div>
+  );
+
+  // 2. Submission Workspace Section (Form + Mode Switcher + Inspection Viewer)
+  const renderSubmissionSection = () => (
+    <div className="flex flex-col gap-6">
+      {/* Tactile Mode Switcher Tabs */}
+      <div
+        role="tablist"
+        aria-label="Investigation Input Mode"
+        className="grid grid-cols-2 p-1.5 rounded-2xl bg-white border-2 border-black shadow-[4px_4px_0px_#000000] text-xs font-black"
+      >
+        <motion.button
+          type="button"
+          role="tab"
+          id="tab-text"
+          aria-selected={investigationMode === 'text'}
+          aria-controls="panel-text"
+          onClick={() => setInvestigationMode('text')}
+          className={`flex items-center justify-center gap-2 py-2.5 rounded-xl transition-all cursor-pointer font-bold select-none ${
+            investigationMode === 'text'
+              ? 'bg-[#8bfb34] text-black border-2 border-black shadow-[2px_2px_0px_#000000] font-black'
+              : 'text-neutral-600 hover:text-black border-2 border-transparent'
+          }`}
+          whileTap={{ scale: 0.97 }}
+        >
+          <FileText className="w-4 h-4" aria-hidden="true" />
+          <span>Text Message</span>
+        </motion.button>
+
+        <motion.button
+          type="button"
+          role="tab"
+          id="tab-screenshot"
+          aria-selected={investigationMode === 'screenshot'}
+          aria-controls="panel-screenshot"
+          onClick={() => setInvestigationMode('screenshot')}
+          className={`flex items-center justify-center gap-2 py-2.5 rounded-xl transition-all cursor-pointer font-bold select-none ${
+            investigationMode === 'screenshot'
+              ? 'bg-[#8bfb34] text-black border-2 border-black shadow-[2px_2px_0px_#000000] font-black'
+              : 'text-neutral-600 hover:text-black border-2 border-transparent'
+          }`}
+          whileTap={{ scale: 0.97 }}
+        >
+          <Camera className="w-4 h-4" aria-hidden="true" />
+          <span>Screenshot / Image</span>
+        </motion.button>
+      </div>
+
+      {/* Submission Input Section: Pure white card with solid black border & offset shadow */}
+      <section
+        className="bg-white border-2 border-black rounded-2xl p-6 sm:p-7 shadow-[6px_6px_0px_#000000] flex flex-col gap-5"
+        aria-labelledby="input-heading"
+      >
+        {investigationMode === 'text' ? (
+          /* Text Input Mode */
+          <>
+            <div className="flex flex-wrap items-center justify-between gap-2.5 border-b-2 border-neutral-100 pb-3">
+              <div>
+                <h2 id="input-heading" className="text-sm font-black uppercase tracking-wider text-neutral-900">
+                  Content Submission
+                </h2>
+                <span className="text-[10px] font-mono text-neutral-500 font-semibold">
+                  Paste untrusted message text for defensive AI inspection
+                </span>
+              </div>
+
+              <div className="relative w-full sm:w-auto max-w-full sm:max-w-xs">
+                <NeoDropdownModal
+                  id="sample-selector"
+                  title="Synthetic Security Scenarios"
+                  subtitle="Curated phishing, smishing, and deceptive message lures"
+                  triggerLabel="Load synthetic sample..."
+                  selectedScenario={selectedScenario}
+                  badgeText={`${ALL_SYNTHETIC_SAMPLES.length} Scenarios`}
+                  icon={FlaskConical}
+                  samples={ALL_SYNTHETIC_SAMPLES}
+                  type="text"
+                  onSelect={handleSelectTextSample}
+                  onClear={handleClearScenario}
+                />
+              </div>
+            </div>
+
+            {/* Active Scenario Banner */}
+            {selectedScenario && (
+              <motion.div
+                initial={{ opacity: 0, y: -4 }}
+                animate={{ opacity: 1, y: 0 }}
+                className="flex flex-wrap items-center justify-between gap-2.5 p-3 rounded-xl bg-[#8bfb34]/20 border-2 border-black shadow-[2px_2px_0px_#000] text-xs font-bold"
+              >
+                <div className="flex items-center gap-2 truncate min-w-0">
+                  <div className="p-1 rounded bg-[#8bfb34] border border-black text-black flex-shrink-0">
+                    <Sparkles className="w-3.5 h-3.5 stroke-[2.5]" />
+                  </div>
+                  <span className="text-neutral-600 flex-shrink-0">Loaded Scenario:</span>
+                  <span className="text-black font-black truncate">{selectedScenario.label}</span>
+                </div>
+                <div className="flex items-center gap-2 flex-shrink-0">
+                  <button
+                    type="button"
+                    onClick={handleClearScenario}
+                    className="px-2.5 py-1 rounded-md border border-black bg-white hover:bg-neutral-100 text-[11px] font-bold cursor-pointer transition-colors shadow-[1px_1px_0px_#000]"
+                  >
+                    Clear (Custom)
+                  </button>
+                  <button
+                    type="button"
+                    disabled={isLoading}
+                    onClick={() => executeTextAnalysis(selectedScenario.message, selectedScenario.message_type, selectedScenario.url || '')}
+                    className="px-2.5 py-1 rounded-md border border-black bg-[#8bfb34] hover:bg-[#7ce62c] text-black text-[11px] font-black cursor-pointer shadow-[1px_1px_0px_#000] disabled:opacity-50"
+                  >
+                    Re-Analyze →
+                  </button>
+                </div>
+              </motion.div>
+            )}
+
+            <form onSubmit={handleTextSubmit} className="flex flex-col gap-4">
+              {/* Message Type Selector */}
+              <fieldset>
+                <legend className="text-xs font-black uppercase tracking-wider text-neutral-700 mb-2">
+                  Message Medium:
+                </legend>
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                  {[
+                    { id: 'type-email', val: 'email', label: 'Email' },
+                    { id: 'type-sms', val: 'sms', label: 'SMS / Text' },
+                    { id: 'type-call', val: 'call', label: 'Call Notes' },
+                    { id: 'type-other', val: 'other', label: 'Other' },
+                  ].map((item) => (
+                    <label
+                      key={item.val}
+                      htmlFor={item.id}
+                      className={`flex items-center justify-center gap-1.5 py-2 px-2 rounded-xl border-2 border-black text-xs font-bold cursor-pointer transition-all text-center select-none ${
+                        messageType === item.val
+                          ? 'bg-[#8bfb34] text-black shadow-[2px_2px_0px_#000000]'
+                          : 'bg-white text-neutral-700 hover:bg-[#faf8f3]'
+                      }`}
+                    >
+                      <input
+                        type="radio"
+                        id={item.id}
+                        name="message_type"
+                        value={item.val}
+                        checked={messageType === item.val}
+                        onChange={(e) => setMessageType(e.target.value)}
+                        className="sr-only"
+                      />
+                      <span>{item.label}</span>
+                    </label>
+                  ))}
+                </div>
+              </fieldset>
+
+              {/* Message Textarea with Live Counter */}
+              <div>
+                <div className="flex justify-between items-center mb-1.5">
+                  <label htmlFor="message-input" className="text-xs font-black uppercase tracking-wider text-neutral-700">
+                    Message Content <span className="text-red-500">*</span>
+                  </label>
+                  <span
+                    id="char-count"
+                    className={`text-xs font-mono font-bold ${
+                      message.length > 14000 ? 'text-red-600 font-extrabold' : 'text-neutral-500'
+                    }`}
+                    aria-live="polite"
+                  >
+                    {message.length.toLocaleString()} / 15,000
+                  </span>
+                </div>
+                <textarea
+                  id="message-input"
+                  name="message"
+                  rows={5}
+                  maxLength={15000}
+                  required
+                  value={message}
+                  onChange={(e) => setMessage(e.target.value)}
+                  placeholder="Paste suspicious SMS, email, WhatsApp message, or notification body here..."
+                  className="w-full bg-white border-2 border-black rounded-xl p-3.5 text-sm text-neutral-900 placeholder:text-neutral-400 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-black resize-y shadow-[3px_3px_0px_#000000]"
+                  aria-describedby="message-hint char-count"
+                />
+                <span id="message-hint" className="sr-only">
+                  Enter untrusted message text to analyze defensively.
+                </span>
+              </div>
+
+              {/* Who does this message claim to be from? */}
+              <div>
+                <label htmlFor="text-claimed-org-input" className="block text-xs font-black uppercase tracking-wider text-neutral-700 mb-1">
+                  Who does this message claim to be from? <span className="text-neutral-400 font-normal lowercase">(optional)</span>
+                </label>
+                <input
+                  type="text"
+                  id="text-claimed-org-input"
+                  name="claimed_org"
+                  maxLength={100}
+                  value={claimedOrg}
+                  onChange={(e) => setClaimedOrg(e.target.value)}
+                  placeholder="e.g. State Bank of India, Amazon, DHL, Netflix"
+                  className="w-full bg-white border-2 border-black rounded-xl px-3.5 py-2 text-xs font-medium text-neutral-900 placeholder:text-neutral-400 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-black shadow-[2px_2px_0px_#000000]"
+                />
+              </div>
+
+              {/* Optional URL Input */}
+              <div>
+                <label htmlFor="url-input" className="block text-xs font-black uppercase tracking-wider text-neutral-700 mb-1">
+                  Embedded URL <span className="text-neutral-400 font-normal lowercase">(optional)</span>
+                </label>
+                <input
+                  type="text"
+                  id="url-input"
+                  name="url"
+                  maxLength={2048}
+                  value={url}
+                  onChange={(e) => setUrl(e.target.value)}
+                  placeholder="https://example-verification-portal.xyz/login"
+                  autoCorrect="off"
+                  autoCapitalize="off"
+                  spellCheck="false"
+                  className="w-full bg-white border-2 border-black rounded-xl px-3.5 py-2 text-xs font-medium text-neutral-900 placeholder:text-neutral-400 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-black shadow-[2px_2px_0px_#000000]"
+                  aria-describedby="url-hint"
+                />
+                <p id="url-hint" className="mt-1 text-[11px] text-neutral-500 font-medium flex items-center gap-1">
+                  <Info className="w-3.5 h-3.5 text-neutral-600 flex-shrink-0" aria-hidden="true" />
+                  <span>Optional. Links in your message or screenshot are detected automatically. All links are checked by fixed rules and never opened.</span>
+                </p>
+              </div>
+
+              {/* Explain in Language Selector */}
+              <NeoSelect
+                id="text-output-lang-select"
+                label="Explain in:"
+                value={outputLanguage}
+                onChange={setOutputLanguage}
+                icon={Languages}
+                options={[
+                  {
+                    value: 'match',
+                    label: 'Match input message language',
+                    badge: 'Auto',
+                    description: 'Analyzes language of submitted text tokens automatically',
+                  },
+                  {
+                    value: 'en',
+                    label: 'English',
+                    badge: 'EN',
+                    description: 'Generate report and explanation in English',
+                  },
+                  {
+                    value: 'hi',
+                    label: 'हिन्दी (Hindi)',
+                    badge: 'HI',
+                    description: 'Generate report and explanation in Hindi (हिन्दी)',
+                  },
+                ]}
+              />
+
+              {/* Optional "Have you already acted on this?" radio group */}
+              <fieldset className="p-3.5 rounded-xl bg-[#faf8f3] border-2 border-black shadow-[2px_2px_0px_#000]">
+                <legend className="text-xs font-black uppercase tracking-wider text-neutral-700 mb-1">
+                  Have you already acted on this? <span className="text-neutral-400 font-normal lowercase">(optional)</span>
+                </legend>
+                <p className="text-[11px] text-neutral-500 font-medium mb-2">
+                  Not sent to the AI. Only selects static emergency guidance if needed.
+                </p>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs">
+                  {[
+                    { val: 'none', label: 'No' },
+                    { val: 'clicked_link', label: 'I clicked a link' },
+                    { val: 'shared_info', label: 'I shared details (OTP, password, card)' },
+                    { val: 'paid_money', label: 'I sent money' },
+                  ].map((item) => (
+                    <label
+                      key={item.val}
+                      className={`flex items-center gap-2 p-2.5 rounded-xl border-2 border-black cursor-pointer transition-all select-none font-bold ${
+                        userState === item.val
+                          ? 'bg-[#8bfb34] text-black shadow-[2px_2px_0px_#000]'
+                          : 'bg-white text-neutral-700 hover:bg-[#faf8f3]'
+                      }`}
+                    >
+                      <input
+                        type="radio"
+                        name="text_user_state"
+                        value={item.val}
+                        checked={userState === item.val}
+                        onChange={(e) => setUserState(item.val)}
+                        className="sr-only"
+                      />
+                      <span className="text-xs">{item.label}</span>
+                    </label>
+                  ))}
+                </div>
+              </fieldset>
+
+              {/* Form Action Buttons: Inspired by Image 1 & Image 3 */}
+              <div className="flex items-center gap-3 pt-2">
+                <NeoButton
+                  type="submit"
+                  variant="primary"
+                  size="lg"
+                  disabled={isLoading || !message.trim()}
+                  className="flex-1"
+                >
+                  {isLoading ? (
+                    <span className="inline-flex items-center justify-center gap-2 whitespace-nowrap">
+                      <Loader2 className="w-4 h-4 animate-spin" aria-hidden="true" />
+                      <span>Evaluating Content... ({elapsedSeconds}s)</span>
+                    </span>
+                  ) : (
+                    <span className="inline-flex items-center justify-center gap-2 whitespace-nowrap">
+                      <Send className="w-4 h-4" aria-hidden="true" />
+                      <span>Analyze Content</span>
+                      <ArrowRight className="w-4 h-4 ml-1" aria-hidden="true" />
+                    </span>
+                  )}
+                </NeoButton>
+
+                {(message || analysisResult || errorState) && (
+                  <NeoButton
+                    type="button"
+                    variant="secondary"
+                    size="md"
+                    onClick={handleReset}
+                    title="Reset workspace"
+                  >
+                    <RotateCcw className="w-4 h-4" aria-hidden="true" />
+                    <span className="sr-only">Reset workspace</span>
+                  </NeoButton>
+                )}
+              </div>
+            </form>
+          </>
+        ) : (
+          /* Screenshot Upload Mode */
+          <ScreenshotUploadZone
+            onAnalyze={executeScreenshotAnalysis}
+            isLoading={isLoading}
+            elapsedSeconds={elapsedSeconds}
+            onCancel={handleCancel}
+            selectedFile={selectedImageFile}
+            setSelectedFile={setSelectedImageFile}
+            contextNote={contextNote}
+            setContextNote={setContextNote}
+            messageType={imageMessageType}
+            setMessageType={setImageMessageType}
+            claimedOrg={claimedOrg}
+            setClaimedOrg={setClaimedOrg}
+            outputLanguage={outputLanguage}
+            setOutputLanguage={setOutputLanguage}
+            userState={userState}
+            setUserState={setUserState}
+          />
+        )}
+      </section>
+
+      {/* Inspection View (renders below form when analysis results exist) */}
+      {!isLoading && analysisResult && (
+        <motion.section
+          initial={{ opacity: 0, y: 15 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ type: 'spring', stiffness: 350, damping: 25 }}
+          className="bg-white border-2 border-black rounded-2xl p-5 shadow-[6px_6px_0px_#000000]"
+          aria-labelledby="inspection-heading"
+        >
+          {isImageAnalysis ? (
+            /* Image Analysis Result Viewer: Preview Tab | Model Read Tab */
+            <div className="flex flex-col gap-4">
+              <div
+                role="tablist"
+                aria-label="Screenshot inspection view options"
+                className="flex items-center gap-2 border-b-2 border-neutral-100 pb-3"
+              >
+                <NeoButton
+                  size="sm"
+                  variant={imageResultTab === 'model_read' ? 'primary' : 'secondary'}
+                  onClick={() => setImageResultTab('model_read')}
+                >
+                  <Eye className="w-3.5 h-3.5 mr-1" aria-hidden="true" />
+                  <span>What the model read</span>
+                </NeoButton>
+
+                {submittedSnapshot.imageUrl && (
+                  <NeoButton
+                    size="sm"
+                    variant={imageResultTab === 'preview' ? 'primary' : 'secondary'}
+                    onClick={() => setImageResultTab('preview')}
+                  >
+                    <ImageIcon className="w-3.5 h-3.5 mr-1" aria-hidden="true" />
+                    <span>Screenshot Preview</span>
+                  </NeoButton>
+                )}
+              </div>
+
+              {imageResultTab === 'model_read' ? (
+                <ModelReadingView
+                  imageObservations={analysisResult.image_observations}
+                  indicators={sortedIndicators}
+                  activeIndicatorIndex={activeIndicatorIndex}
+                  onSelectIndicator={handleSelectIndicatorFromHighlight}
+                />
+              ) : (
+                <div className="flex flex-col items-center justify-center p-3 rounded-xl bg-[#faf8f3] border-2 border-black shadow-[3px_3px_0px_#000]">
+                  <img
+                    src={submittedSnapshot.imageUrl}
+                    alt="Submitted screenshot"
+                    className="max-h-[380px] w-auto object-contain rounded-lg border border-black/20"
+                  />
+                </div>
+              )}
+            </div>
+          ) : (
+            /* Text Analysis Result Viewer: Highlighted Message */
+            submittedSnapshot.message && (
+              <HighlightedMessage
+                message={submittedSnapshot.message}
+                indicators={sortedIndicators}
+                activeIndicatorIndex={activeIndicatorIndex}
+                onSelectIndicator={handleSelectIndicatorFromHighlight}
+              />
+            )
+          )}
+        </motion.section>
+      )}
+    </div>
+  );
+
   return (
     <div className="min-h-screen bg-[#f6f4ee] bg-[radial-gradient(#d3cec2_1.25px,transparent_1.25px)] [background-size:20px_20px] text-neutral-900 flex flex-col justify-between p-4 sm:p-8 selection:bg-[#8bfb34]/40 font-sans">
+      {/* Screen Lock Modal: Active during context generation until submission finishes */}
+      <GenerationScreenLockModal
+        isOpen={isLoading}
+        elapsedSeconds={elapsedSeconds}
+        investigationMode={investigationMode}
+        onCancel={handleCancel}
+      />
+
       {/* 1. Top Navigation & Brand Header */}
       <header className="max-w-6xl mx-auto w-full flex flex-wrap items-center justify-between gap-4 border-b-2 border-black pb-6">
         <AnimatedLogo />
 
-        {/* Backend Connectivity Status Pill */}
-        <div className="flex items-center">
+        <div className="flex items-center gap-3 flex-wrap">
+          {/* Layout Mode Switcher */}
+          <div className="flex items-center gap-1 p-1 rounded-xl bg-white border-2 border-black shadow-[2px_2px_0px_#000] text-xs font-bold">
+            <button
+              type="button"
+              onClick={() => setLayoutMode('stacked')}
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg transition-all cursor-pointer select-none ${
+                layoutMode === 'stacked'
+                  ? 'bg-[#8bfb34] text-black font-black shadow-[1px_1px_0px_#000]'
+                  : 'text-neutral-600 hover:text-black'
+              }`}
+              title="Form displayed above investigation findings"
+            >
+              <Rows3 className="w-3.5 h-3.5" aria-hidden="true" />
+              <span>Form Above</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => setLayoutMode('side-by-side')}
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg transition-all cursor-pointer select-none ${
+                layoutMode === 'side-by-side'
+                  ? 'bg-[#8bfb34] text-black font-black shadow-[1px_1px_0px_#000]'
+                  : 'text-neutral-600 hover:text-black'
+              }`}
+              title="2-column side-by-side layout"
+            >
+              <Columns2 className="w-3.5 h-3.5" aria-hidden="true" />
+              <span>Side-by-Side</span>
+            </button>
+          </div>
+
+          {/* Backend Connectivity Status Pill */}
           {backendHealth === 'checking' && (
             <div
               className="flex items-center gap-2 px-3 py-1.5 rounded-xl text-xs font-mono font-bold bg-white text-neutral-700 border-2 border-black shadow-[3px_3px_0px_#000]"
@@ -506,643 +1207,30 @@ export default function App() {
       </div>
 
       {/* 2. Main Workspace Layout */}
-      <main className="max-w-6xl mx-auto w-full my-6 flex-1 grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
-        {/* Left Column: Input Workspace / Inspection Viewer (5 cols on lg) */}
-        <div className="lg:col-span-5 flex flex-col gap-6">
-          {/* Tactile Mode Switcher Tabs */}
-          <div
-            role="tablist"
-            aria-label="Investigation Input Mode"
-            className="grid grid-cols-2 p-1.5 rounded-2xl bg-white border-2 border-black shadow-[4px_4px_0px_#000000] text-xs font-black"
-          >
-            <motion.button
-              type="button"
-              role="tab"
-              id="tab-text"
-              aria-selected={investigationMode === 'text'}
-              aria-controls="panel-text"
-              onClick={() => setInvestigationMode('text')}
-              className={`flex items-center justify-center gap-2 py-2.5 rounded-xl transition-all cursor-pointer font-bold select-none ${
-                investigationMode === 'text'
-                  ? 'bg-[#8bfb34] text-black border-2 border-black shadow-[2px_2px_0px_#000000] font-black'
-                  : 'text-neutral-600 hover:text-black border-2 border-transparent'
-              }`}
-              whileTap={{ scale: 0.97 }}
-            >
-              <FileText className="w-4 h-4" aria-hidden="true" />
-              <span>Text Message</span>
-            </motion.button>
-
-            <motion.button
-              type="button"
-              role="tab"
-              id="tab-screenshot"
-              aria-selected={investigationMode === 'screenshot'}
-              aria-controls="panel-screenshot"
-              onClick={() => setInvestigationMode('screenshot')}
-              className={`flex items-center justify-center gap-2 py-2.5 rounded-xl transition-all cursor-pointer font-bold select-none ${
-                investigationMode === 'screenshot'
-                  ? 'bg-[#8bfb34] text-black border-2 border-black shadow-[2px_2px_0px_#000000] font-black'
-                  : 'text-neutral-600 hover:text-black border-2 border-transparent'
-              }`}
-              whileTap={{ scale: 0.97 }}
-            >
-              <Camera className="w-4 h-4" aria-hidden="true" />
-              <span>Screenshot / Image</span>
-            </motion.button>
-          </div>
-
-          {/* Submission Input Section: Pure white card with solid black border & offset shadow */}
-          <section
-            className="bg-white border-2 border-black rounded-2xl p-6 shadow-[6px_6px_0px_#000000] flex flex-col gap-5"
-            aria-labelledby="input-heading"
-          >
-            {investigationMode === 'text' ? (
-              /* Text Input Mode */
-              <>
-                <div className="flex flex-wrap items-center justify-between gap-2.5 border-b-2 border-neutral-100 pb-3">
-                  <div>
-                    <h2 id="input-heading" className="text-sm font-black uppercase tracking-wider text-neutral-900">
-                      Content Submission
-                    </h2>
-                    <span className="text-[10px] font-mono text-neutral-500 font-semibold">
-                      Paste untrusted message text for AI inspection
-                    </span>
-                  </div>
-
-                  <div className="relative w-full sm:w-auto max-w-full sm:max-w-xs">
-                    <label htmlFor="sample-selector" className="sr-only">
-                      Load synthetic sample input
-                    </label>
-                    <select
-                      id="sample-selector"
-                      onChange={handleSelectTextSample}
-                      defaultValue=""
-                      className="w-full text-xs bg-[#faf8f3] border-2 border-black rounded-lg px-2.5 py-1.5 text-neutral-900 font-bold focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-black cursor-pointer truncate shadow-[2px_2px_0px_#000]"
-                    >
-                      <option value="" disabled>
-                        Load synthetic sample...
-                      </option>
-                      {ALL_SYNTHETIC_SAMPLES.map((s) => (
-                        <option key={s.id} value={s.id}>
-                          {s.label}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-                </div>
-
-                <form onSubmit={handleTextSubmit} className="flex flex-col gap-4">
-                  {/* Message Type Selector */}
-                  <fieldset>
-                    <legend className="text-xs font-black uppercase tracking-wider text-neutral-700 mb-2">
-                      Message Medium:
-                    </legend>
-                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-                      {[
-                        { id: 'type-email', val: 'email', label: 'Email' },
-                        { id: 'type-sms', val: 'sms', label: 'SMS / Text' },
-                        { id: 'type-call', val: 'call', label: 'Call Notes' },
-                        { id: 'type-other', val: 'other', label: 'Other' },
-                      ].map((item) => (
-                        <label
-                          key={item.val}
-                          htmlFor={item.id}
-                          className={`flex items-center justify-center gap-1.5 py-2 px-2 rounded-xl border-2 border-black text-xs font-bold cursor-pointer transition-all text-center select-none ${
-                            messageType === item.val
-                              ? 'bg-[#8bfb34] text-black shadow-[2px_2px_0px_#000000]'
-                              : 'bg-white text-neutral-700 hover:bg-[#faf8f3]'
-                          }`}
-                        >
-                          <input
-                            type="radio"
-                            id={item.id}
-                            name="message_type"
-                            value={item.val}
-                            checked={messageType === item.val}
-                            onChange={(e) => setMessageType(e.target.value)}
-                            className="sr-only"
-                          />
-                          <span>{item.label}</span>
-                        </label>
-                      ))}
-                    </div>
-                  </fieldset>
-
-                  {/* Message Textarea with Live Counter */}
-                  <div>
-                    <div className="flex justify-between items-center mb-1.5">
-                      <label htmlFor="message-input" className="text-xs font-black uppercase tracking-wider text-neutral-700">
-                        Message Content <span className="text-red-500">*</span>
-                      </label>
-                      <span
-                        id="char-count"
-                        className={`text-xs font-mono font-bold ${
-                          message.length > 14000 ? 'text-red-600 font-extrabold' : 'text-neutral-500'
-                        }`}
-                        aria-live="polite"
-                      >
-                        {message.length.toLocaleString()} / 15,000
-                      </span>
-                    </div>
-                    <textarea
-                      id="message-input"
-                      name="message"
-                      rows={5}
-                      maxLength={15000}
-                      required
-                      value={message}
-                      onChange={(e) => setMessage(e.target.value)}
-                      placeholder="Paste suspicious SMS, email, WhatsApp message, or notification body here..."
-                      className="w-full bg-white border-2 border-black rounded-xl p-3.5 text-sm text-neutral-900 placeholder:text-neutral-400 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-black resize-y shadow-[3px_3px_0px_#000000]"
-                      aria-describedby="message-hint char-count"
-                    />
-                    <span id="message-hint" className="sr-only">
-                      Enter untrusted message text to analyze defensively.
-                    </span>
-                  </div>
-
-                  {/* Who does this message claim to be from? */}
-                  <div>
-                    <label htmlFor="text-claimed-org-input" className="block text-xs font-black uppercase tracking-wider text-neutral-700 mb-1">
-                      Who does this message claim to be from? <span className="text-neutral-400 font-normal lowercase">(optional)</span>
-                    </label>
-                    <input
-                      type="text"
-                      id="text-claimed-org-input"
-                      name="claimed_org"
-                      maxLength={100}
-                      value={claimedOrg}
-                      onChange={(e) => setClaimedOrg(e.target.value)}
-                      placeholder="e.g. State Bank of India, Amazon, DHL, Netflix"
-                      className="w-full bg-white border-2 border-black rounded-xl px-3.5 py-2 text-xs font-medium text-neutral-900 placeholder:text-neutral-400 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-black shadow-[2px_2px_0px_#000000]"
-                    />
-                  </div>
-
-                  {/* Optional URL Input */}
-                  <div>
-                    <label htmlFor="url-input" className="block text-xs font-black uppercase tracking-wider text-neutral-700 mb-1">
-                      Embedded URL <span className="text-neutral-400 font-normal lowercase">(optional)</span>
-                    </label>
-                    <input
-                      type="text"
-                      id="url-input"
-                      name="url"
-                      maxLength={2048}
-                      value={url}
-                      onChange={(e) => setUrl(e.target.value)}
-                      placeholder="https://example-verification-portal.xyz/login"
-                      autoCorrect="off"
-                      autoCapitalize="off"
-                      spellCheck="false"
-                      className="w-full bg-white border-2 border-black rounded-xl px-3.5 py-2 text-xs font-medium text-neutral-900 placeholder:text-neutral-400 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-black shadow-[2px_2px_0px_#000000]"
-                      aria-describedby="url-hint"
-                    />
-                    <p id="url-hint" className="mt-1 text-[11px] text-neutral-500 font-medium flex items-center gap-1">
-                      <Info className="w-3.5 h-3.5 text-neutral-600 flex-shrink-0" aria-hidden="true" />
-                      <span>Optional. Links in your message or screenshot are detected automatically. All links are checked by fixed rules and never opened.</span>
-                    </p>
-                  </div>
-
-                  {/* Explain in Language Selector */}
-                  <div>
-                    <label htmlFor="text-output-lang-select" className="block text-xs font-black uppercase tracking-wider text-neutral-700 mb-1">
-                      Explain in:
-                    </label>
-                    <select
-                      id="text-output-lang-select"
-                      value={outputLanguage}
-                      onChange={(e) => setOutputLanguage(e.target.value)}
-                      className="w-full bg-white border-2 border-black rounded-xl px-3.5 py-2 text-xs font-bold text-neutral-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-black cursor-pointer shadow-[2px_2px_0px_#000000]"
-                    >
-                      <option value="match">Match input message language</option>
-                      <option value="en">English</option>
-                      <option value="hi">हिन्दी (Hindi)</option>
-                    </select>
-                  </div>
-
-                  {/* Optional "Have you already acted on this?" radio group */}
-                  <fieldset className="p-3.5 rounded-xl bg-[#faf8f3] border-2 border-black shadow-[2px_2px_0px_#000]">
-                    <legend className="text-xs font-black uppercase tracking-wider text-neutral-700 mb-1">
-                      Have you already acted on this? <span className="text-neutral-400 font-normal lowercase">(optional)</span>
-                    </legend>
-                    <p className="text-[11px] text-neutral-500 font-medium mb-2">
-                      Not sent to the AI. Only selects static emergency guidance if needed.
-                    </p>
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs">
-                      {[
-                        { val: 'none', label: 'No' },
-                        { val: 'clicked_link', label: 'I clicked a link' },
-                        { val: 'shared_info', label: 'I shared details (OTP, password, card)' },
-                        { val: 'paid_money', label: 'I sent money' },
-                      ].map((item) => (
-                        <label
-                          key={item.val}
-                          className={`flex items-center gap-2 p-2.5 rounded-xl border-2 border-black cursor-pointer transition-all select-none font-bold ${
-                            userState === item.val
-                              ? 'bg-[#8bfb34] text-black shadow-[2px_2px_0px_#000]'
-                              : 'bg-white text-neutral-700 hover:bg-[#faf8f3]'
-                          }`}
-                        >
-                          <input
-                            type="radio"
-                            name="text_user_state"
-                            value={item.val}
-                            checked={userState === item.val}
-                            onChange={(e) => setUserState(item.val)}
-                            className="sr-only"
-                          />
-                          <span className="text-xs">{item.label}</span>
-                        </label>
-                      ))}
-                    </div>
-                  </fieldset>
-
-                  {/* Form Action Buttons: Inspired by Image 1 & Image 3 */}
-                  <div className="flex items-center gap-3 pt-2">
-                    <NeoButton
-                      type="submit"
-                      variant="primary"
-                      size="lg"
-                      disabled={isLoading || !message.trim()}
-                      className="flex-1"
-                    >
-                      {isLoading ? (
-                        <>
-                          <Loader2 className="w-4 h-4 animate-spin mr-2" aria-hidden="true" />
-                          <span>Evaluating Content... ({elapsedSeconds}s)</span>
-                        </>
-                      ) : (
-                        <>
-                          <Send className="w-4 h-4 mr-2" aria-hidden="true" />
-                          <span>Analyze Content</span>
-                          <ArrowRight className="w-4 h-4 ml-1" aria-hidden="true" />
-                        </>
-                      )}
-                    </NeoButton>
-
-                    {isLoading ? (
-                      <NeoButton
-                        type="button"
-                        variant="danger"
-                        size="lg"
-                        onClick={handleCancel}
-                      >
-                        Cancel
-                      </NeoButton>
-                    ) : (
-                      (message || analysisResult || errorState) && (
-                        <NeoButton
-                          type="button"
-                          variant="secondary"
-                          size="md"
-                          onClick={handleReset}
-                          title="Reset workspace"
-                        >
-                          <RotateCcw className="w-4 h-4" aria-hidden="true" />
-                          <span className="sr-only">Reset workspace</span>
-                        </NeoButton>
-                      )
-                    )}
-                  </div>
-                </form>
-              </>
-            ) : (
-              /* Screenshot Upload Mode */
-              <ScreenshotUploadZone
-                onAnalyze={executeScreenshotAnalysis}
-                isLoading={isLoading}
-                elapsedSeconds={elapsedSeconds}
-                onCancel={handleCancel}
-                selectedFile={selectedImageFile}
-                setSelectedFile={setSelectedImageFile}
-                contextNote={contextNote}
-                setContextNote={setContextNote}
-                messageType={imageMessageType}
-                setMessageType={setImageMessageType}
-                claimedOrg={claimedOrg}
-                setClaimedOrg={setClaimedOrg}
-                outputLanguage={outputLanguage}
-                setOutputLanguage={setOutputLanguage}
-                userState={userState}
-                setUserState={setUserState}
-              />
-            )}
+      {layoutMode === 'stacked' ? (
+        /* STACKED MODE: Submission Form is placed ABOVE the Investigation Findings/Results */
+        <main className="max-w-5xl mx-auto w-full my-6 flex-1 flex flex-col gap-10 items-stretch">
+          {/* Top: Submission Form & Content Inspection */}
+          <section aria-label="Submission Workspace Section">
+            {renderSubmissionSection()}
           </section>
 
-          {/* Inspection View (renders below form when analysis results exist) */}
-          {!isLoading && analysisResult && (
-            <motion.section
-              initial={{ opacity: 0, y: 15 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ type: 'spring', stiffness: 350, damping: 25 }}
-              className="bg-white border-2 border-black rounded-2xl p-5 shadow-[6px_6px_0px_#000000]"
-              aria-labelledby="inspection-heading"
-            >
-              {isImageAnalysis ? (
-                /* Image Analysis Result Viewer: Preview Tab | Model Read Tab */
-                <div className="flex flex-col gap-4">
-                  <div
-                    role="tablist"
-                    aria-label="Screenshot inspection view options"
-                    className="flex items-center gap-2 border-b-2 border-neutral-100 pb-3"
-                  >
-                    <NeoButton
-                      size="sm"
-                      variant={imageResultTab === 'model_read' ? 'primary' : 'secondary'}
-                      onClick={() => setImageResultTab('model_read')}
-                    >
-                      <Eye className="w-3.5 h-3.5 mr-1" aria-hidden="true" />
-                      <span>What the model read</span>
-                    </NeoButton>
-
-                    {submittedSnapshot.imageUrl && (
-                      <NeoButton
-                        size="sm"
-                        variant={imageResultTab === 'preview' ? 'primary' : 'secondary'}
-                        onClick={() => setImageResultTab('preview')}
-                      >
-                        <ImageIcon className="w-3.5 h-3.5 mr-1" aria-hidden="true" />
-                        <span>Screenshot Preview</span>
-                      </NeoButton>
-                    )}
-                  </div>
-
-                  {imageResultTab === 'model_read' ? (
-                    <ModelReadingView
-                      imageObservations={analysisResult.image_observations}
-                      indicators={sortedIndicators}
-                      activeIndicatorIndex={activeIndicatorIndex}
-                      onSelectIndicator={handleSelectIndicatorFromHighlight}
-                    />
-                  ) : (
-                    <div className="flex flex-col items-center justify-center p-3 rounded-xl bg-[#faf8f3] border-2 border-black shadow-[3px_3px_0px_#000]">
-                      <img
-                        src={submittedSnapshot.imageUrl}
-                        alt="Submitted screenshot"
-                        className="max-h-[380px] w-auto object-contain rounded-lg border border-black/20"
-                      />
-                    </div>
-                  )}
-                </div>
-              ) : (
-                /* Text Analysis Result Viewer: Highlighted Message */
-                submittedSnapshot.message && (
-                  <HighlightedMessage
-                    message={submittedSnapshot.message}
-                    indicators={sortedIndicators}
-                    activeIndicatorIndex={activeIndicatorIndex}
-                    onSelectIndicator={handleSelectIndicatorFromHighlight}
-                  />
-                )
-              )}
-            </motion.section>
-          )}
-        </div>
-
-        {/* Right Column: Investigation Findings & Evidence (7 cols on lg) */}
-        <div ref={resultsTopRef} className="lg:col-span-7 flex flex-col gap-6">
-          {/* Section Heading & Copy Report Button */}
-          <div className="flex flex-wrap items-center justify-between gap-3 border-b-2 border-black pb-3.5">
-            <div className="flex items-center gap-2.5">
-              <div className="p-2 rounded-xl bg-black text-white border-2 border-black shadow-[2px_2px_0px_#000000]">
-                <Layers className="w-4 h-4 stroke-[2.5]" aria-hidden="true" />
-              </div>
-              <div>
-                <h2 className="text-sm font-black uppercase tracking-wider text-neutral-900">
-                  Investigation Findings
-                </h2>
-                <span className="text-[10px] font-mono font-bold text-neutral-500">
-                  Defensive AI &amp; Grounded Evidence Analysis
-                </span>
-              </div>
-            </div>
-
-            {analysisResult && (
-              <CopyReportButton
-                analysis={analysisResult}
-                meta={meta}
-                submittedMessage={submittedSnapshot.message}
-                submittedUrl={submittedSnapshot.url}
-                urlChecks={urlChecks}
-                staticGuidance={staticGuidance}
-              />
-            )}
+          {/* Bottom: Investigation Findings & Results */}
+          <section aria-label="Investigation Findings Section" className="border-t-2 border-black/80 pt-8">
+            {renderFindingsSection()}
+          </section>
+        </main>
+      ) : (
+        /* SIDE-BY-SIDE MODE: 2 Columns on wide screens */
+        <main className="max-w-6xl mx-auto w-full my-6 flex-1 grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
+          <div className="lg:col-span-5">
+            {renderSubmissionSection()}
           </div>
-
-          {/* State 1: Loading Skeleton */}
-          {isLoading && (
-            <motion.section
-              initial={{ opacity: 0, scale: 0.98 }}
-              animate={{ opacity: 1, scale: 1 }}
-              className="rounded-2xl border-2 border-black bg-white p-8 sm:p-12 flex flex-col items-center justify-center text-center gap-4 shadow-[6px_6px_0px_#000000]"
-              aria-live="polite"
-              aria-label="Analysis in progress"
-            >
-              <div className="p-4 rounded-2xl bg-[#8bfb34] border-2 border-black shadow-[3px_3px_0px_#000000]">
-                <Loader2 className="w-8 h-8 animate-spin text-black" aria-hidden="true" />
-              </div>
-
-              <div>
-                <h3 className="text-lg font-black text-neutral-900">
-                  Performing Defensive Security Analysis
-                </h3>
-                <p className="text-xs font-medium text-neutral-600 mt-1 max-w-sm">
-                  {investigationMode === 'screenshot'
-                    ? 'Gemma 4 is transcribing visual elements, extracting links, and evaluating deceptive patterns...'
-                    : 'Gemma 4 is inspecting structural anomalies, urgency lures, and grounded evidence...'}
-                </p>
-                <div className="mt-4 inline-flex items-center gap-2 px-3.5 py-1.5 rounded-lg bg-[#faf8f3] border-2 border-black text-xs font-mono font-black shadow-[2px_2px_0px_#000]">
-                  <span>Elapsed: {elapsedSeconds}s</span>
-                </div>
-              </div>
-
-              {/* Skeleton Bars */}
-              <div className="w-full max-w-md space-y-3 mt-4" aria-hidden="true">
-                <div className="h-4 bg-neutral-200 rounded-md border border-black/10 animate-pulse" />
-                <div className="h-4 bg-neutral-200 rounded-md border border-black/10 w-5/6 animate-pulse" />
-                <div className="h-4 bg-neutral-200 rounded-md border border-black/10 w-4/6 animate-pulse" />
-              </div>
-            </motion.section>
-          )}
-
-          {/* State 2: Error Alert Card */}
-          {!isLoading && errorState && (
-            <motion.section
-              initial={{ opacity: 0, y: 10 }}
-              animate={{ opacity: 1, y: 0 }}
-              className="rounded-2xl border-2 border-black bg-[#fee2e2] p-6 text-[#991b1b] flex flex-col gap-4 shadow-[6px_6px_0px_#000000]"
-              role="alert"
-              aria-live="assertive"
-            >
-              <div className="flex items-start gap-3.5">
-                <AlertCircle className="w-6 h-6 text-[#ef4444] flex-shrink-0 mt-0.5" aria-hidden="true" />
-                <div className="flex-1">
-                  <h3 className="text-sm font-black text-[#991b1b] uppercase tracking-wide">
-                    Analysis Error: {errorState.code}
-                  </h3>
-                  <p className="text-xs text-neutral-900 mt-1.5 leading-relaxed font-semibold">
-                    {errorState.message}
-                  </p>
-                </div>
-              </div>
-
-              {errorState.code !== 'CANCELLED' && (
-                <div className="pt-2 border-t-2 border-red-200 flex justify-end">
-                  <NeoButton
-                    size="sm"
-                    variant="danger"
-                    onClick={() => {
-                      if (investigationMode === 'screenshot') {
-                        executeScreenshotAnalysis();
-                      } else {
-                        executeTextAnalysis(message, messageType, url);
-                      }
-                    }}
-                  >
-                    <RotateCcw className="w-3.5 h-3.5 mr-1" aria-hidden="true" />
-                    <span>Retry Analysis</span>
-                  </NeoButton>
-                </div>
-              )}
-            </motion.section>
-          )}
-
-          {/* State 3: Empty State */}
-          {!isLoading && !errorState && !analysisResult && (
-            <motion.section
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              className="rounded-2xl border-2 border-black bg-white p-8 sm:p-14 flex flex-col items-center justify-center text-center text-neutral-600 min-h-[380px] shadow-[6px_6px_0px_#000000]"
-            >
-              <div className="p-4 rounded-2xl bg-[#faf8f3] border-2 border-black mb-4 shadow-[4px_4px_0px_#000000]">
-                <ShieldAlert className="w-10 h-10 text-neutral-800" aria-hidden="true" />
-              </div>
-              <h3 className="text-base font-black text-neutral-900">
-                Awaiting Content Submission
-              </h3>
-              <p className="text-xs text-neutral-600 mt-1.5 max-w-sm leading-relaxed font-medium">
-                {investigationMode === 'screenshot'
-                  ? 'Upload an image or select a sample on the left to evaluate for fake login prompts, urgent SMS alerts, and deceptive cues.'
-                  : 'Paste an untrusted text message or load a sample on the left to extract indicators, verify grounded evidence, and inspect links.'}
-              </p>
-            </motion.section>
-          )}
-
-          {/* State 4: Active Results Display */}
-          {!isLoading && !errorState && analysisResult && (
-            <div className="flex flex-col gap-6">
-              {/* 1. Risk Level Banner with Summary, Model, Latency */}
-              <RiskBanner
-                riskLevel={analysisResult.risk_level}
-                summary={analysisResult.summary}
-                model={meta?.model}
-                latencyMs={meta?.latency_ms}
-              />
-
-              {/* 2. Heuristic Indicator Meter */}
-              <HeuristicMeter
-                score={analysisResult.heuristic_score}
-                riskLevel={analysisResult.risk_level}
-              />
-
-              {/* 2b. AI-suggested Scam Pattern Chip */}
-              <PatternChip
-                scamPattern={analysisResult.scam_pattern}
-                patternRationale={analysisResult.pattern_rationale}
-                detectedLanguage={analysisResult.detected_language}
-                displayLanguage={
-                  outputLanguage === 'hi' ||
-                  (outputLanguage === 'match' && analysisResult.detected_language === 'hi')
-                    ? 'hi'
-                    : 'en'
-                }
-              />
-
-              {/* 2c. Static Pattern Guidance Tip ("Good to know") */}
-              {staticGuidance?.pattern_tip && (
-                <PatternTipBlock
-                  patternTip={staticGuidance.pattern_tip}
-                  displayLanguage={
-                    outputLanguage === 'hi' ||
-                    (outputLanguage === 'match' && analysisResult.detected_language === 'hi')
-                      ? 'hi'
-                      : 'en'
-                  }
-                />
-              )}
-
-              {/* 2d. Static "Where to report" Panel */}
-              <WhereToReportPanel
-                staticGuidance={staticGuidance}
-                userState={userState}
-                isHindi={
-                  outputLanguage === 'hi' ||
-                  (outputLanguage === 'match' && analysisResult.detected_language === 'hi')
-                }
-              />
-
-              {/* 2e. Deterministic Rule-Based URL Inspection Panel */}
-              <UrlChecksPanel urlChecks={urlChecks} />
-
-              {/* 3. Evidence Cards List */}
-              <section
-                className="flex flex-col gap-3.5"
-                aria-labelledby="indicators-heading"
-              >
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <h3
-                      id="indicators-heading"
-                      className="text-xs font-black text-neutral-900 uppercase tracking-wider"
-                    >
-                      Identified Indicators ({sortedIndicators.length})
-                    </h3>
-                    <span className="px-2 py-0.5 rounded-md text-[10px] font-mono font-bold uppercase bg-[#faf8f3] text-black border border-black shadow-[1px_1px_0px_#000]">
-                      AI-generated
-                    </span>
-                  </div>
-                  {meta?.unverified_evidence_count > 0 && (
-                    <span className="text-[11px] text-amber-900 font-bold bg-amber-100 px-2.5 py-0.5 rounded-md border border-amber-400">
-                      ⚠️ {meta.unverified_evidence_count} unverified quote(s)
-                    </span>
-                  )}
-                </div>
-
-                {sortedIndicators.length === 0 ? (
-                  <p className="text-xs text-neutral-600 italic bg-white p-4 rounded-xl border-2 border-black shadow-[3px_3px_0px_#000]">
-                    No deceptive or malicious indicators detected in the submission.
-                  </p>
-                ) : (
-                  <div className="flex flex-col gap-3.5">
-                    {sortedIndicators.map((ind) => (
-                      <EvidenceCard
-                        key={ind._originalIdx}
-                        indicator={ind}
-                        index={ind._originalIdx}
-                        displayNumber={ind.displayNumber}
-                        isActive={activeIndicatorIndex === ind._originalIdx}
-                        onFocusCard={setActiveIndicatorIndex}
-                        onJumpToHighlight={handleJumpToHighlightFromCard}
-                        inputType={isImageAnalysis ? 'image' : 'text'}
-                      />
-                    ))}
-                  </div>
-                )}
-              </section>
-
-              {/* 4. Signals Panel */}
-              <SignalsPanel signals={analysisResult.positive_or_neutral_signals} />
-
-              {/* 5. Actions Panel */}
-              <ActionsPanel recommendedActions={analysisResult.recommended_actions} />
-
-              {/* 6. Limitations Panel (Permanently Visible) */}
-              <LimitationsPanel limitations={analysisResult.limitations} />
-            </div>
-          )}
-        </div>
-      </main>
+          <div className="lg:col-span-7">
+            {renderFindingsSection()}
+          </div>
+        </main>
+      )}
 
       {/* 3. Footer */}
       <footer className="max-w-6xl mx-auto w-full border-t-2 border-black pt-4 mt-8 flex flex-wrap items-center justify-between gap-3 text-xs font-mono font-bold text-neutral-600">

@@ -12,8 +12,11 @@ import {
   Shield,
   FileCheck,
   ArrowRight,
+  Languages,
 } from 'lucide-react';
 import NeoButton from './NeoButton.jsx';
+import NeoSelect from './NeoSelect.jsx';
+import NeoDropdownModal from './NeoDropdownModal.jsx';
 
 const SYNTHETIC_IMAGE_SAMPLES = [
   {
@@ -149,6 +152,7 @@ export default function ScreenshotUploadZone({
   setUserState,
 }) {
   const [dragActive, setDragActive] = useState(false);
+  const [selectedScenario, setSelectedScenario] = useState(null);
   const [fileMeta, setFileMeta] = useState(null);
   const [previewUrl, setPreviewUrl] = useState(null);
   const [clientError, setClientError] = useState(null);
@@ -223,6 +227,7 @@ export default function ScreenshotUploadZone({
   };
 
   const handleRemove = () => {
+    setSelectedScenario(null);
     if (previewUrl && previewUrl.startsWith('blob:')) {
       URL.revokeObjectURL(previewUrl);
     }
@@ -233,28 +238,32 @@ export default function ScreenshotUploadZone({
     if (fileInputRef.current) fileInputRef.current.value = '';
   };
 
-  const handleSelectSampleScreenshot = async (e) => {
-    const sampleId = e.target.value;
-    if (!sampleId) return;
+  const handleSelectSampleScreenshot = async (sampleOrEvent, autoAnalyze = true) => {
+    const sample = sampleOrEvent?.id
+      ? sampleOrEvent
+      : SYNTHETIC_IMAGE_SAMPLES.find((s) => s.id === sampleOrEvent?.target?.value);
+    if (!sample) return;
 
-    const sample = SYNTHETIC_IMAGE_SAMPLES.find((s) => s.id === sampleId);
-    if (sample) {
-      try {
-        const res = await fetch(sample.url);
-        const blob = await res.blob();
-        const file = new File([blob], sample.filename, { type: 'image/png' });
-        await handleFile(file);
-        if (sample.message_type && setMessageType) {
-          setMessageType(sample.message_type);
-        }
-        if (sample.context_note && setContextNote) {
-          setContextNote(sample.context_note);
-        }
-      } catch {
-        setClientError('Failed to load sample image file.');
+    setSelectedScenario(sample);
+    try {
+      const res = await fetch(sample.url);
+      const blob = await res.blob();
+      const file = new File([blob], sample.filename, { type: 'image/png' });
+      await handleFile(file);
+      if (sample.message_type && setMessageType) {
+        setMessageType(sample.message_type);
       }
+      if (sample.context_note && setContextNote) {
+        setContextNote(sample.context_note);
+      }
+      if (autoAnalyze && onAnalyze) {
+        setTimeout(() => {
+          onAnalyze?.();
+        }, 150);
+      }
+    } catch {
+      setClientError('Failed to load sample image file.');
     }
-    e.target.value = '';
   };
 
   const handleSubmit = (e) => {
@@ -277,23 +286,55 @@ export default function ScreenshotUploadZone({
         </div>
 
         <div className="relative w-full sm:w-auto max-w-full sm:max-w-xs">
-          <select
+          <NeoDropdownModal
             id="image-sample-selector"
-            onChange={handleSelectSampleScreenshot}
-            defaultValue=""
-            className="w-full text-xs bg-[#faf8f3] border-2 border-black rounded-lg px-2.5 py-1.5 text-neutral-900 font-bold focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-black cursor-pointer truncate shadow-[2px_2px_0px_#000]"
-          >
-            <option value="" disabled>
-              Load sample image (synthetic)...
-            </option>
-            {SYNTHETIC_IMAGE_SAMPLES.map((s) => (
-              <option key={s.id} value={s.id}>
-                {s.label}
-              </option>
-            ))}
-          </select>
+            title="Synthetic Screenshot Scenarios"
+            subtitle="Evaluate visual spoofing, smishing, and fake login lures"
+            triggerLabel="Load sample image..."
+            selectedScenario={selectedScenario}
+            badgeText={`${SYNTHETIC_IMAGE_SAMPLES.length} Samples`}
+            icon={ImageIcon}
+            samples={SYNTHETIC_IMAGE_SAMPLES}
+            type="image"
+            onSelect={handleSelectSampleScreenshot}
+            onClear={handleRemove}
+          />
         </div>
       </div>
+
+      {/* Active Screenshot Scenario Banner */}
+      {selectedScenario && (
+        <motion.div
+          initial={{ opacity: 0, y: -4 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="flex flex-wrap items-center justify-between gap-2.5 p-3 rounded-xl bg-[#8bfb34]/20 border-2 border-black shadow-[2px_2px_0px_#000] text-xs font-bold"
+        >
+          <div className="flex items-center gap-2 truncate min-w-0">
+            <div className="p-1 rounded bg-[#8bfb34] border border-black text-black flex-shrink-0">
+              <ImageIcon className="w-3.5 h-3.5 stroke-[2.5]" />
+            </div>
+            <span className="text-neutral-600 flex-shrink-0">Loaded Scenario:</span>
+            <span className="text-black font-black truncate">{selectedScenario.label}</span>
+          </div>
+          <div className="flex items-center gap-2 flex-shrink-0">
+            <button
+              type="button"
+              onClick={handleRemove}
+              className="px-2.5 py-1 rounded-md border border-black bg-white hover:bg-neutral-100 text-[11px] font-bold cursor-pointer transition-colors shadow-[1px_1px_0px_#000]"
+            >
+              Clear (Custom)
+            </button>
+            <button
+              type="button"
+              disabled={isLoading}
+              onClick={() => onAnalyze?.()}
+              className="px-2.5 py-1 rounded-md border border-black bg-[#8bfb34] hover:bg-[#7ce62c] text-black text-[11px] font-black cursor-pointer shadow-[1px_1px_0px_#000] disabled:opacity-50"
+            >
+              Re-Analyze →
+            </button>
+          </div>
+        </motion.div>
+      )}
 
       {/* Drag & Drop Zone */}
       {!selectedFile ? (
@@ -460,21 +501,33 @@ export default function ScreenshotUploadZone({
       </div>
 
       {/* Explain in Language Selector */}
-      <div>
-        <label htmlFor="image-output-lang-select" className="block text-xs font-black uppercase tracking-wider text-neutral-700 mb-1">
-          Explain in:
-        </label>
-        <select
-          id="image-output-lang-select"
-          value={outputLanguage}
-          onChange={(e) => setOutputLanguage?.(e.target.value)}
-          className="w-full bg-white border-2 border-black rounded-xl px-3.5 py-2 text-xs font-bold text-neutral-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-black cursor-pointer shadow-[2px_2px_0px_#000]"
-        >
-          <option value="match">Match image content language</option>
-          <option value="en">English</option>
-          <option value="hi">हिन्दी (Hindi)</option>
-        </select>
-      </div>
+      <NeoSelect
+        id="image-output-lang-select"
+        label="Explain in:"
+        value={outputLanguage}
+        onChange={(val) => setOutputLanguage?.(val)}
+        icon={Languages}
+        options={[
+          {
+            value: 'match',
+            label: 'Match image content language',
+            badge: 'Auto',
+            description: 'Analyzes language of visual text tokens in the screenshot',
+          },
+          {
+            value: 'en',
+            label: 'English',
+            badge: 'EN',
+            description: 'Generate report and explanation in English',
+          },
+          {
+            value: 'hi',
+            label: 'हिन्दी (Hindi)',
+            badge: 'HI',
+            description: 'Generate report and explanation in Hindi (हिन्दी)',
+          },
+        ]}
+      />
 
       {/* Optional "Have you already acted on this?" radio group */}
       <fieldset className="p-3.5 rounded-xl bg-[#faf8f3] border-2 border-black shadow-[2px_2px_0px_#000]">
@@ -523,16 +576,16 @@ export default function ScreenshotUploadZone({
           className="flex-1"
         >
           {isLoading ? (
-            <>
-              <Loader2 className="w-4 h-4 animate-spin mr-2" aria-hidden="true" />
+            <span className="inline-flex items-center justify-center gap-2 whitespace-nowrap">
+              <Loader2 className="w-4 h-4 animate-spin" aria-hidden="true" />
               <span>Analyzing Screenshot... ({elapsedSeconds}s)</span>
-            </>
+            </span>
           ) : (
-            <>
-              <Send className="w-4 h-4 mr-2" aria-hidden="true" />
+            <span className="inline-flex items-center justify-center gap-2 whitespace-nowrap">
+              <Send className="w-4 h-4" aria-hidden="true" />
               <span>Analyze Screenshot</span>
-              <ArrowRight className="w-4 h-4 ml-1" aria-hidden="true" />
-            </>
+              <ArrowRight className="w-4 h-4" aria-hidden="true" />
+            </span>
           )}
         </NeoButton>
 

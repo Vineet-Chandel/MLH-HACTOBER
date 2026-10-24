@@ -84,7 +84,7 @@ export default function NeoButton({
       {Icon && iconPosition === 'left' && (
         <Icon className={size === 'sm' ? 'w-3.5 h-3.5' : size === 'lg' ? 'w-5 h-5' : 'w-4 h-4'} aria-hidden="true" />
       )}
-      <span>{children}</span>
+      <span className="inline-flex items-center justify-center gap-1.5 whitespace-nowrap">{children}</span>
       {Icon && iconPosition === 'right' && (
         <Icon className={size === 'sm' ? 'w-3.5 h-3.5' : size === 'lg' ? 'w-5 h-5' : 'w-4 h-4'} aria-hidden="true" />
       )}
