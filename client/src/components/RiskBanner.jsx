@@ -120,7 +120,7 @@ export default function RiskBanner({ riskLevel, summary, model, latencyMs }) {
         <h3 className="text-xs font-semibold text-slate-300 uppercase tracking-wider mb-1.5">
           Executive Summary
         </h3>
-        <p className="text-sm text-slate-200 leading-relaxed bg-[#0a0f1d]/60 p-3 rounded-[8px] border border-white/5">
+        <p className="text-sm text-slate-200 leading-relaxed bg-[#0a0f1d]/60 p-3 rounded-[8px] border border-white/5 break-words [overflow-wrap:anywhere]">
           {summary}
         </p>
       </div>

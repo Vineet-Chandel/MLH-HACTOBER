@@ -13,10 +13,14 @@ export const IndicatorCategoryEnum = z.enum([
 
 export const IndicatorSeverityEnum = z.enum(['low', 'medium', 'high']);
 
+export const EvidenceSourceEnum = z.enum(['transcribed_text', 'visual_element']);
+
 export const EvidenceMatchSchema = z.object({
   found: z.boolean(),
   start: z.number().int().nonnegative().optional(),
   end: z.number().int().nonnegative().optional(),
+  reason: z.string().optional(),
+  source: z.string().optional(),
 });
 
 export const IndicatorSchema = z.object({
@@ -25,6 +29,7 @@ export const IndicatorSchema = z.object({
   explanation: z.string().min(1).max(1000),
   severity: IndicatorSeverityEnum,
   uncertainty: z.string().max(1000).default(''),
+  evidence_source: EvidenceSourceEnum.optional().default('transcribed_text'),
   evidence_match: EvidenceMatchSchema.optional(),
   unverified: z.boolean().optional(),
 });
@@ -46,6 +51,17 @@ export const AnalysisOutputSchema = z.object({
   limitations: z.array(z.string().max(500)).max(25).default([]),
 });
 
+export const ImageObservationsSchema = z.object({
+  transcribed_text: z.string().max(6000).default(''),
+  visual_elements: z.array(z.string().max(300)).max(15).default([]),
+  visible_urls: z.array(z.string().max(2048)).max(10).default([]),
+  image_quality_note: z.string().max(1000).default(''),
+});
+
+export const ImageAnalysisOutputSchema = AnalysisOutputSchema.extend({
+  image_observations: ImageObservationsSchema,
+});
+
 export const MessageTypeEnum = z.enum(['sms', 'email', 'other']);
 
 export const AnalyzeRequestSchema = z.object({
@@ -62,6 +78,16 @@ export const AnalyzeRequestSchema = z.object({
   url: z
     .string()
     .max(2048, 'URL cannot exceed 2048 characters')
+    .optional()
+    .nullable()
+    .transform((val) => (val ? val.trim() : undefined)),
+});
+
+export const AnalyzeImageRequestSchema = z.object({
+  message_type: MessageTypeEnum.optional().default('other'),
+  context_note: z
+    .string()
+    .max(500, 'Context note cannot exceed 500 characters')
     .optional()
     .nullable()
     .transform((val) => (val ? val.trim() : undefined)),

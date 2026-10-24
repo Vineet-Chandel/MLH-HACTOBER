@@ -70,8 +70,11 @@ async function runIntegrationTests() {
       console.log(`  -> Indicators:      ${analysis.indicators?.length || 0}`);
       if (analysis.indicators?.length > 0) {
         analysis.indicators.forEach((ind, idx) => {
+          const matchInfo = ind.evidence_match?.found
+            ? `offsets [${ind.evidence_match.start}, ${ind.evidence_match.end}]`
+            : 'no offsets in text';
           console.log(
-            `     [#${idx + 1}] [${ind.severity.toUpperCase()}] ${ind.category}: "${ind.evidence}" (${ind.unverified ? 'UNVERIFIED' : 'verified'})`
+            `     [#${idx + 1}] [${ind.severity.toUpperCase()}] ${ind.category}: "${ind.evidence}" (${ind.unverified ? 'UNVERIFIED' : 'verified'}, ${matchInfo})`
           );
         });
       }

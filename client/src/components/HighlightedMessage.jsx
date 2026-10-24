@@ -126,7 +126,7 @@ export default function HighlightedMessage({
 
       {/* Reading Surface: Warm off-white, high-contrast document viewer */}
       <div
-        className="rounded-[10px] border border-slate-300/80 bg-[#fdfbf7] text-[#0f172a] p-4 sm:p-5 shadow-sm font-sans text-sm sm:text-base leading-relaxed break-words whitespace-pre-wrap selection:bg-teal-200"
+        className="rounded-[10px] border border-slate-300/80 bg-[#fdfbf7] text-[#0f172a] p-4 sm:p-5 shadow-sm font-sans text-sm sm:text-base leading-relaxed break-words break-all [overflow-wrap:anywhere] whitespace-pre-wrap selection:bg-teal-200"
         aria-label="Submitted message text with highlighted indicators"
         tabIndex={0}
       >
