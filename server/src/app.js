@@ -34,8 +34,18 @@ app.use(
 // 3. JSON body parser with size limit
 app.use(express.json({ limit: '1mb' }));
 
-import { AnalyzeRequestSchema } from './validators/analysisSchema.js';
-import { analyzeMessage, AnalysisError } from './services/analyze.js';
+import { AnalyzeRequestSchema, AnalyzeImageRequestSchema } from './validators/analysisSchema.js';
+import { analyzeMessage, analyzeImage, AnalysisError } from './services/analyze.js';
+import { validateImageFile, ImageValidationError } from './validators/imageValidator.js';
+import multer from 'multer';
+
+const upload = multer({
+  storage: multer.memoryStorage(),
+  limits: {
+    fileSize: 5 * 1024 * 1024, // 5 MB limit
+    files: 1,
+  },
+});
 
 // 4. Rate limiting: 100 requests per 15-minute window per IP for general endpoints
 const apiLimiter = rateLimit({
@@ -59,12 +69,24 @@ const analyzeLimiter = rateLimit({
   },
 });
 
+// Dedicated rate limit on multimodal image analysis: 15 requests per 15 minutes
+const imageAnalyzeLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 15,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: {
+    error: 'Image analysis request rate limit reached. Please wait a few minutes before submitting another image.',
+    code: 'RATE_LIMITED',
+  },
+});
+
 // 5. Health check endpoint (never exposes keys or secrets)
 app.get('/api/health', (req, res) => {
   res.json({ status: 'ok' });
 });
 
-// 6. Security Analysis endpoint
+// 6. Security Analysis endpoint (Text)
 app.post('/api/analyze', analyzeLimiter, async (req, res, next) => {
   try {
     const parseResult = AnalyzeRequestSchema.safeParse(req.body);
@@ -86,8 +108,68 @@ app.post('/api/analyze', analyzeLimiter, async (req, res, next) => {
   }
 });
 
+// 6b. Multimodal Screenshot Security Analysis endpoint
+app.post(
+  '/api/analyze-image',
+  imageAnalyzeLimiter,
+  upload.single('image'),
+  async (req, res, next) => {
+    try {
+      if (!req.file) {
+        return res.status(400).json({
+          code: 'INVALID_INPUT',
+          error: 'An image file is required.',
+        });
+      }
+
+      // Validate real file type from magic bytes & header dimensions
+      const { mimeType } = validateImageFile(req.file);
+
+      // Validate optional metadata fields
+      const parseResult = AnalyzeImageRequestSchema.safeParse(req.body);
+      if (!parseResult.success) {
+        return res.status(400).json({
+          code: 'INVALID_INPUT',
+          error: parseResult.error.errors[0]?.message || 'Invalid form payload',
+        });
+      }
+
+      const analysisResult = await analyzeImage({
+        imageBuffer: req.file.buffer,
+        mimeType,
+        message_type: parseResult.data.message_type,
+        context_note: parseResult.data.context_note,
+      });
+
+      res.json(analysisResult);
+    } catch (error) {
+      next(error);
+    }
+  }
+);
+
 // 7. Global error handler: returns safe error messages, never stack traces
 app.use((err, req, res, next) => {
+  if (err instanceof multer.MulterError) {
+    if (err.code === 'LIMIT_FILE_SIZE') {
+      return res.status(413).json({
+        code: 'FILE_TOO_LARGE',
+        error: 'Image exceeds the maximum allowed size of 5 MB.',
+      });
+    }
+    return res.status(400).json({
+      code: 'INVALID_INPUT',
+      error: `File upload error: ${err.message}`,
+    });
+  }
+
+  if (err instanceof ImageValidationError) {
+    return res.status(err.status).json({
+      code: err.code,
+      error: err.message,
+    });
+  }
+
   if (err instanceof AnalysisError) {
     return res.status(err.status).json({
       error: err.message,

@@ -6,7 +6,7 @@
   "scripts": {
     "dev": "node --watch src/app.js",
     "start": "node src/app.js",
-    "test": "node --test test/analysis.test.js test/health.test.js",
+    "test": "node --test test/analysis.test.js test/health.test.js test/image.test.js",
     "test:integration": "node scripts/integration-test.js",
     "check:model": "node scripts/check-model.js",
     "ping:gemma": "node scripts/ping-gemma.js"

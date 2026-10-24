@@ -59,6 +59,7 @@ export default function EvidenceCard({
   isActive,
   onFocusCard,
   onJumpToHighlight,
+  inputType = 'text',
 }) {
   // Collapsible: high severity expanded by default, medium/low collapsed by default
   const [isOpen, setIsOpen] = useState(indicator.severity === 'high');
@@ -81,6 +82,7 @@ export default function EvidenceCard({
   const SeverityIcon = sevMeta.icon;
 
   const isVerified = Boolean(indicator.evidence_match?.found);
+  const isVisual = indicator.evidence_source === 'visual_element';
 
   return (
     <article
@@ -116,6 +118,13 @@ export default function EvidenceCard({
             <SeverityIcon className="w-3 h-3" aria-hidden="true" />
             <span>{sevMeta.label}</span>
           </span>
+
+          {/* Source Tag for Image Analysis */}
+          {inputType === 'image' && (
+            <span className="text-[10px] font-mono px-2 py-0.5 rounded-[6px] bg-slate-800 text-slate-300 border border-slate-700">
+              {isVisual ? 'Visual element' : 'From transcribed text'}
+            </span>
+          )}
         </div>
 
         {/* Toggle Collapse Button */}
@@ -136,13 +145,30 @@ export default function EvidenceCard({
 
       {/* Quoted Evidence Monospace block */}
       <div className="flex flex-col gap-1">
-        <div className="flex items-center justify-between text-[11px]">
+        <div className="flex items-center justify-between text-[11px] flex-wrap gap-1">
           <span className="font-semibold text-slate-400 uppercase tracking-wider">
-            Quoted Evidence:
+            {isVisual ? 'Visual Evidence:' : 'Quoted Evidence:'}
           </span>
 
           {/* Grounding Verification Badge */}
-          {isVerified ? (
+          {inputType === 'image' ? (
+            isVisual ? (
+              <span className="flex items-center gap-1 text-[10px] font-medium text-teal-300 bg-teal-950/70 border border-teal-500/30 px-2 py-0.5 rounded-[6px]">
+                <CheckCircle2 className="w-3 h-3 text-teal-400" aria-hidden="true" />
+                <span>Visual observation (layout / logo / pattern)</span>
+              </span>
+            ) : isVerified ? (
+              <span className="flex items-center gap-1 text-[10px] font-medium text-teal-300 bg-teal-950/70 border border-teal-500/30 px-2 py-0.5 rounded-[6px]">
+                <CheckCircle2 className="w-3 h-3 text-teal-400" aria-hidden="true" />
+                <span>Matches the model&apos;s reading of the image, not independently verified</span>
+              </span>
+            ) : (
+              <span className="flex items-center gap-1 text-[10px] font-medium text-amber-300 bg-amber-950/70 border border-amber-500/30 px-2 py-0.5 rounded-[6px]">
+                <AlertCircle className="w-3 h-3 text-amber-400" aria-hidden="true" />
+                <span>Not found in model transcript, treat with caution</span>
+              </span>
+            )
+          ) : isVerified ? (
             <span className="flex items-center gap-1 text-[10px] font-medium text-emerald-300 bg-emerald-950/70 border border-emerald-500/30 px-2 py-0.5 rounded-[6px]">
               <CheckCircle2 className="w-3 h-3 text-emerald-400" aria-hidden="true" />
               <span>Quote verified in your message</span>

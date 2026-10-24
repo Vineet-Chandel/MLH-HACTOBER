@@ -1,10 +1,15 @@
 import { getGemmaClient, getGemmaModel } from './gemma.js';
 import {
   DEFENSIVE_SYSTEM_INSTRUCTION,
+  IMAGE_DEFENSIVE_SYSTEM_INSTRUCTION,
   buildAnalysisPrompt,
+  buildImageAnalysisPrompt,
   buildRepairPrompt,
 } from './prompt.js';
-import { AnalysisOutputSchema } from '../validators/analysisSchema.js';
+import {
+  AnalysisOutputSchema,
+  ImageAnalysisOutputSchema,
+} from '../validators/analysisSchema.js';
 
 export class AnalysisError extends Error {
   /**
@@ -416,6 +421,257 @@ export async function analyzeMessage(
     url
   );
 
+    const finalAnalysis = {
+    ...validation.data,
+    indicators: verifiedIndicators,
+  };
+
+  const latency_ms = Date.now() - startTime;
+
+  return {
+    analysis: finalAnalysis,
+    meta: {
+      model: modelName,
+      latency_ms,
+      unverified_evidence_count: unverifiedCount,
+    },
+  };
+}
+
+/**
+ * Verifies indicator evidence for image analysis against the model's transcribed_text.
+ * Visual elements are not matched against text and are never counted as unverified quotes.
+ *
+ * @param {Array<Object>} indicators
+ * @param {string} transcribedText
+ * @returns {{ verifiedIndicators: Array<Object>, unverifiedCount: number }}
+ */
+export function verifyImageEvidence(indicators, transcribedText = '') {
+  if (!Array.isArray(indicators)) {
+    return { verifiedIndicators: [], unverifiedCount: 0 };
+  }
+
+  let unverifiedCount = 0;
+
+  const verifiedIndicators = indicators.map((ind) => {
+    // 1. Visual elements: do not count as unverified, return reason: 'visual'
+    if (ind.evidence_source === 'visual_element') {
+      return {
+        ...ind,
+        evidence_source: 'visual_element',
+        evidence_match: {
+          found: false,
+          reason: 'visual',
+          source: 'visual_element',
+        },
+        unverified: false,
+      };
+    }
+
+    // 2. Transcribed text indicators: match against transcribed_text only
+    const transcript = typeof transcribedText === 'string' ? transcribedText : '';
+    if (!transcript.trim()) {
+      unverifiedCount++;
+      return {
+        ...ind,
+        evidence_source: 'transcribed_text',
+        evidence_match: {
+          found: false,
+          source: 'transcribed_text',
+        },
+        unverified: true,
+      };
+    }
+
+    const match = findEvidenceMatch(transcript, ind.evidence);
+    if (match.found) {
+      return {
+        ...ind,
+        evidence_source: 'transcribed_text',
+        evidence_match: {
+          ...match,
+          source: 'transcribed_text',
+        },
+        unverified: false,
+      };
+    }
+
+    unverifiedCount++;
+    return {
+      ...ind,
+      evidence_source: 'transcribed_text',
+      evidence_match: {
+        found: false,
+        source: 'transcribed_text',
+      },
+      unverified: true,
+    };
+  });
+
+  return { verifiedIndicators, unverifiedCount };
+}
+
+/**
+ * Parses and validates image analysis model output against the ImageAnalysisOutputSchema.
+ * @param {string} rawOutput
+ * @returns {{ success: true, data: Object } | { success: false, errors: any }}
+ */
+export function parseAndValidateImage(rawOutput) {
+  if (!rawOutput || typeof rawOutput !== 'string') {
+    return { success: false, errors: 'Empty response from model' };
+  }
+
+  const cleaned = stripFences(rawOutput);
+  let parsedJson;
+  try {
+    parsedJson = JSON.parse(cleaned);
+  } catch (parseError) {
+    const jsonMatch = cleaned.match(/\{[\s\S]*\}/);
+    if (jsonMatch) {
+      try {
+        parsedJson = JSON.parse(jsonMatch[0]);
+      } catch (innerError) {
+        return {
+          success: false,
+          errors: `Invalid JSON syntax: ${parseError.message}`,
+        };
+      }
+    } else {
+      return {
+        success: false,
+        errors: `Invalid JSON syntax: ${parseError.message}`,
+      };
+    }
+  }
+
+  const result = ImageAnalysisOutputSchema.safeParse(parsedJson);
+  if (!result.success) {
+    return {
+      success: false,
+      errors: result.error.errors,
+    };
+  }
+
+  return { success: true, data: result.data };
+}
+
+/**
+ * Executes a single multimodal generation call to Gemma with timeout.
+ * @param {Array<Object>|string} contents
+ * @param {string} systemInstruction
+ * @returns {Promise<string>}
+ */
+async function callGemmaMultimodalWithTimeout(contents, systemInstruction) {
+  const ai = getGemmaClient();
+  const model = getGemmaModel();
+  const timeoutMs = Number(process.env.ANALYSIS_TIMEOUT_MS) || 60000;
+
+  let timer;
+  const timeoutPromise = new Promise((_, reject) => {
+    timer = setTimeout(() => {
+      reject(
+        new AnalysisError(
+          'TIMEOUT',
+          `The security analysis service timed out after ${Math.round(timeoutMs / 1000)} seconds. Please try again.`,
+          504
+        )
+      );
+    }, timeoutMs);
+  });
+
+  try {
+    const generationPromise = ai.models.generateContent({
+      model,
+      contents,
+      config: {
+        systemInstruction,
+        temperature: 0.1,
+        maxOutputTokens: 4096,
+      },
+    }).then((res) => extractResponseText(res));
+
+    const result = await Promise.race([generationPromise, timeoutPromise]);
+    clearTimeout(timer);
+    return result;
+  } catch (error) {
+    clearTimeout(timer);
+    throw mapToAnalysisError(error);
+  }
+}
+
+/**
+ * Main multimodal image analysis orchestrator.
+ *
+ * @param {Object} input
+ * @param {Buffer} input.imageBuffer
+ * @param {string} input.mimeType
+ * @param {string} [input.message_type]
+ * @param {string} [input.context_note]
+ * @param {Function} [customCallFn] Optional mockable call function for testing.
+ * @returns {Promise<{ analysis: Object, meta: Object }>}
+ */
+export async function analyzeImage(
+  { imageBuffer, mimeType, message_type = 'other', context_note = '' },
+  customCallFn = null
+) {
+  const startTime = Date.now();
+  const modelName = getGemmaModel();
+
+  const callModel = customCallFn || callGemmaMultimodalWithTimeout;
+  const initialPrompt = buildImageAnalysisPrompt({ message_type, context_note });
+
+  const initialContents = [
+    {
+      role: 'user',
+      parts: [
+        { text: initialPrompt },
+        {
+          inlineData: {
+            mimeType,
+            data: imageBuffer.toString('base64'),
+          },
+        },
+      ],
+    },
+  ];
+
+  // 1. Initial Model Call
+  const rawOutput = await callModel(
+    initialContents,
+    IMAGE_DEFENSIVE_SYSTEM_INSTRUCTION
+  );
+
+  // 2. Parse and Validate
+  let validation = parseAndValidateImage(rawOutput);
+
+  // 3. One bounded repair attempt if validation fails
+  if (!validation.success) {
+    const repairPrompt = buildRepairPrompt(rawOutput, validation.errors);
+    try {
+      const repairedOutput = await callModel(
+        repairPrompt,
+        IMAGE_DEFENSIVE_SYSTEM_INSTRUCTION
+      );
+      validation = parseAndValidateImage(repairedOutput);
+    } catch {
+      // Continue to check validation
+    }
+
+    if (!validation.success) {
+      throw new AnalysisError(
+        'MODEL_OUTPUT_INVALID',
+        'The model produced output that could not be validated against the security schema.',
+        502
+      );
+    }
+  }
+
+  // 4. Evidence verification against image_observations.transcribed_text
+  const { verifiedIndicators, unverifiedCount } = verifyImageEvidence(
+    validation.data.indicators,
+    validation.data.image_observations?.transcribed_text
+  );
+
   const finalAnalysis = {
     ...validation.data,
     indicators: verifiedIndicators,
@@ -429,6 +685,7 @@ export async function analyzeMessage(
       model: modelName,
       latency_ms,
       unverified_evidence_count: unverifiedCount,
+      input_type: 'image',
     },
   };
 }
