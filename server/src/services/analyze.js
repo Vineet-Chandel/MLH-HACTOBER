@@ -225,7 +225,7 @@ async function callGemmaWithTimeout(promptText, systemInstruction) {
       config: {
         systemInstruction,
         temperature: 0.1,
-        maxOutputTokens: 1500,
+        maxOutputTokens: 4096,
       },
     }).then((res) => extractResponseText(res));
 

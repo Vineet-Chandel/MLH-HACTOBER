@@ -99,9 +99,10 @@ async function runIntegrationTests() {
       });
     }
 
-    // Delay between calls to respect API limits
+    // Delay between calls to respect Google AI Studio free tier concurrency limits
     if (i < TEST_CASES.length - 1) {
-      await sleep(1500);
+      console.log('  -> Waiting 5s before next test to respect rate limits...');
+      await sleep(5000);
     }
   }
 
