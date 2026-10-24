@@ -1,0 +1,24 @@
+{
+  "name": "linksleuth-server",
+  "version": "0.1.0",
+  "type": "module",
+  "private": true,
+  "scripts": {
+    "dev": "node --watch src/app.js",
+    "start": "node src/app.js",
+    "test": "node --test test/analysis.test.js test/health.test.js",
+    "test:integration": "node scripts/integration-test.js",
+    "check:model": "node scripts/check-model.js",
+    "ping:gemma": "node scripts/ping-gemma.js"
+  },
+  "dependencies": {
+    "@google/genai": "^2.31.0",
+    "cors": "^2.8.5",
+    "dotenv": "^16.4.7",
+    "express": "^4.21.2",
+    "express-rate-limit": "^7.5.0",
+    "helmet": "^8.0.0",
+    "multer": "^1.4.5-lts.1",
+    "zod": "^3.24.2"
+  }
+}
